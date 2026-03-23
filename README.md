@@ -1,85 +1,110 @@
-🎓 Agentic AI Exam Solver
 
+<div class="container">
+
+<h1>🎓 Agentic AI Exam Solver</h1>
+
+<p>
 A production-oriented, multi-agent AI system designed to solve academic exam questions directly from images.
-This project combines a modern web interface with advanced agent orchestration to deliver structured, reliable, and explainable answers.
+It combines a modern web interface with advanced agent orchestration to deliver structured, reliable, and explainable results.
+</p>
 
-🏗️ Architecture Overview
+<div class="card">
+<h2>🏗️ Architecture Overview</h2>
+<p>
+The system follows a modular, three-layer architecture separating:
+</p>
+<ul>
+    <li><span class="highlight">Reasoning (LLMs)</span> → the brain</li>
+    <li><span class="highlight">Tools & execution</span> → the body</li>
+    <li><span class="highlight">User interface</span> → interaction layer</li>
+</ul>
+</div>
 
-The system follows a modular, three-layer architecture that cleanly separates:
+<div class="card">
+<h2>1. Web Application Layer (Django)</h2>
+<ul>
+    <li><strong>User Interface:</strong> Dashboard for uploading images and viewing results</li>
+    <li><strong>Backend:</strong> Handles storage, pipeline execution, and database</li>
+    <li><strong>Flow:</strong> Upload → Process → Display results</li>
+</ul>
+</div>
 
-Reasoning (LLMs) → the “brain”
-Execution & tools → the “body”
-User interaction → the interface
-1. Web Application Layer (Django)
-User Interface
-A clean dashboard that allows users to upload exam images and view results in real time.
-Backend
-Handles file storage, triggers the AI pipeline, and manages application data.
-Flow
-Upload image → Launch AI pipeline → Display validated results
-2. Orchestration Layer (LangGraph)
+<div class="card">
+<h2>2. Orchestration Layer (LangGraph)</h2>
+<p>The system uses a stateful graph of agents instead of a linear pipeline:</p>
+<ul>
+    <li><strong>Planner Agent:</strong> Defines solving strategy</li>
+    <li><strong>OCR Agent:</strong> Extracts text from images</li>
+    <li><strong>Question Agent:</strong> Structures extracted content</li>
+    <li><strong>Answer Agent:</strong> Generates solutions using LLMs</li>
+    <li><strong>Reviewer Agent:</strong> Validates and corrects outputs</li>
+</ul>
+</div>
 
-Instead of a linear pipeline, the system uses a stateful graph of agents to simulate structured reasoning:
+<div class="card">
+<h2>3. Tool Layer (MCP Server)</h2>
+<p>Implements the Model Context Protocol (MCP) to separate reasoning from execution.</p>
+<ul>
+    <li><strong>OCR Tool:</strong> OpenCV + Tesseract/PaddleOCR</li>
+    <li><strong>Math Solver:</strong> Symbolic computation engine</li>
+    <li><strong>Python Executor:</strong> Secure sandbox execution</li>
+</ul>
+</div>
 
-Planner Agent
-Determines the solving strategy based on the exam type.
-OCR Agent
-Coordinates vision tools to extract text from images.
-Question Agent
-Organizes raw text into structured question blocks.
-Answer Agent
-Generates solutions using local LLMs (via Ollama).
-Reviewer Agent
-Validates and corrects outputs to reduce hallucinations.
-3. Tool Layer (MCP Server)
-
-The system leverages the Model Context Protocol (MCP) to decouple reasoning from tool execution.
-
-All tools are exposed via a standardized JSON-RPC interface, enabling modularity and scalability.
-
-OCR Tool
-Image preprocessing (OpenCV) + text extraction (Tesseract / PaddleOCR)
-Math Solver
-Symbolic computation for step-by-step verification
-Python Executor
-Secure sandbox for executing logic and validating results
-📂 Project Structure
+<!-- <div class="card">
+<h2>📂 Project Structure</h2>
+<pre>
 ai_exam_solver/
-├── manage.py            # Django entry point
-├── config/              # Settings & URL configuration
-├── exam_app/            # Main web application
-│   ├── services/        # AI pipeline integration
-│   ├── models.py        # Database models
-│   └── templates/       # UI صفحات
-├── agents/              # Agent logic (Planner, Answer, Reviewer...)
-├── langgraph_workflow/  # Graph definition & state machine
-├── mcp_server/          # MCP server implementation
-│   ├── server.py        # Entry point
-│   └── tools/           # OCR, math solver, Python executor
-└── media/               # Uploaded exam images
-🚀 Execution Pipeline
-Upload
-The user uploads an exam image (math, physics, etc.)
-Pre-processing
-The OCR tool enhances the image using OpenCV filters.
-Analysis
-The system identifies question types (MCQ, open-ended, computational).
-Solving
-The Answer Agent generates solutions using structured reasoning.
-Verification
-The Reviewer Agent validates correctness and consistency.
-Delivery
-Results are displayed as a clear, step-by-step exam report.
-🛠️ Tech Stack
-Backend / Web: Django 5.x, Python 3.11+
-Agent Framework: LangGraph, LangChain
-Protocol: Model Context Protocol (MCP)
-LLMs (Local): Ollama (Llama 3, Mistral)
-Computer Vision: OpenCV, Tesseract OCR
-Validation: Pydantic / PydanticAI
-✨ Key Features
-Multi-agent reasoning architecture
-End-to-end pipeline from image to validated solution
-Self-correction mechanism to improve reliability
-Fully modular and extensible design
-Local model support (privacy-friendly)
+├── manage.py
+├── config/
+├── exam_app/
+│   ├── services/
+│   ├── models.py
+│   └── templates/
+├── agents/
+├── langgraph_workflow/
+├── mcp_server/
+│   ├── server.py
+│   └── tools/
+└── media/
+</pre>
+</div> -->
+
+<div class="card">
+<h2>🚀 Execution Pipeline</h2>
+<ul>
+    <li><strong>Upload:</strong> User submits an exam image</li>
+    <li><strong>Pre-processing:</strong> Image enhancement using OpenCV</li>
+    <li><strong>Analysis:</strong> Identify question types</li>
+    <li><strong>Solving:</strong> Generate answers using reasoning</li>
+    <li><strong>Verification:</strong> Validate results</li>
+    <li><strong>Delivery:</strong> Display structured report</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>🛠️ Tech Stack</h2>
+<p>
+<span class="badge">Django</span>
+<span class="badge">LangGraph</span>
+<span class="badge">LangChain</span>
+<span class="badge">MCP</span>
+<span class="badge">Ollama</span>
+<span class="badge">OpenCV</span>
+<span class="badge">Tesseract</span>
+<span class="badge">Pydantic</span>
+</p>
+</div>
+
+<div class="card">
+<h2>✨ Key Features</h2>
+<ul>
+    <li>Multi-agent reasoning system</li>
+    <li>End-to-end pipeline (image → solution)</li>
+    <li>Self-correction to reduce hallucinations</li>
+    <li>Modular and extensible architecture</li>
+    <li>Local model support (privacy-friendly)</li>
+</ul>
+</div>
+
+</div>
