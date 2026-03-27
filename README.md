@@ -28,7 +28,7 @@ The system follows a modular, three-layer architecture separating:
         <code>python -m venv venv</code> (Activate with <code>venv\Scripts\activate</code>)
     </li>
     <li><strong>Install Dependencies:</strong> 
-        <code>pip install -r requirements.txt</code>
+        <code>pip install -r ../requirements.txt</code>
     </li>
     <li><strong>External Tools:</strong>
         <ul>
