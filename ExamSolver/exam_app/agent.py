@@ -11,7 +11,7 @@ class AgentState(TypedDict):
     solution: str
 
 llm = ChatOllama(
-    model="phi3",  
+    model="llama3", 
     temperature=0.2,
 )
 def clean_text_node(state: AgentState):
