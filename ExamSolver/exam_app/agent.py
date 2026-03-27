@@ -9,3 +9,8 @@ class AgentState(TypedDict):
     raw_text: str
     cleaned_text: str
     solution: str
+
+llm = ChatOllama(
+    model="phi3",  
+    temperature=0.2,
+)
