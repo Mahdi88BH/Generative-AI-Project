@@ -32,3 +32,14 @@ def solve_exam_node(state: AgentState):
     )
     response = llm.invoke(prompt)
     return {"solution": response.content}
+
+workflow = StateGraph(AgentState)
+
+workflow.add_node("cleaner", clean_text_node)
+workflow.add_node("solver", solve_exam_node)
+
+workflow.set_entry_point("cleaner")
+workflow.add_edge("cleaner", "solver")
+workflow.add_edge("solver", END)
+
+exam_agent = workflow.compile()
