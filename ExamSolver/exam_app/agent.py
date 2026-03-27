@@ -23,3 +23,12 @@ def clean_text_node(state: AgentState):
     )
     response = llm.invoke(prompt)
     return {"cleaned_text": response.content}
+
+def solve_exam_node(state: AgentState):
+    prompt = (
+        "Tu es un professeur assistant. Résous les questions d'examen suivantes de manière "
+        "claire, étape par étape, en utilisant un ton pédagogique.\n\n"
+        f"QUESTIONS : {state['cleaned_text']}"
+    )
+    response = llm.invoke(prompt)
+    return {"solution": response.content}
