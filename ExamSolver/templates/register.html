@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Solver | Inscription</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #10a37f;
+            --primary-hover: #1a7f64;
+            --bg-dark: #202123;
+            --card-bg: rgba(52, 53, 65, 0.95);
+            --input-bg: #3e3f4b;
+            --text-light: #ececf1;
+            --text-dim: #8e8ea0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #343541 0%, #202123 100%);
+            color: var(--text-light);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Arrière-plan animé subtil */
+        .bg-glow {
+            position: absolute;
+            width: 400px; height: 400px;
+            background: var(--primary);
+            filter: blur(150px);
+            opacity: 0.1;
+            z-index: 0;
+            animation: move 20s infinite alternate;
+        }
+
+        .auth-card {
+            position: relative;
+            z-index: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .auth-card h2 {
+            text-align: center;
+            font-weight: 600;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        .auth-card p.subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group { margin-bottom: 1.2rem; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+        }
+
+        /* Style des inputs Django injectés */
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--input-bg);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #4a4b59;
+            box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.2);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 1.5rem;
+            transition: transform 0.2s, background 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-submit:active { transform: translateY(0); }
+
+        .errorlist {
+            color: #ff6b6b;
+            list-style: none;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            padding: 0;
+        }
+
+        .footer-link {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .footer-link a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes move {
+            from { transform: translate(-50%, -50%); }
+            to { transform: translate(50%, 50%); }
+        }
+    </style>
+</head>
+<body>
+    
+</body>
+</html>
