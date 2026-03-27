@@ -160,6 +160,41 @@
     </style>
 </head>
 <body>
-    
+     <div class="bg-glow"></div>
+
+    <div class="auth-card">
+        <h2>Rejoindre l'aventure</h2>
+        <p class="subtitle">Créez votre compte AI Solver en quelques secondes.</p>
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="errorlist" style="margin-bottom: 15px; text-align: center;">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                            <span class="errorlist"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="btn-submit">
+                Créer mon compte <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </form>
+        
+        <div class="footer-link">
+            Vous avez déjà un compte ? <a href="{% url 'login' %}">Connexion</a>
+        </div>
+    </div>
 </body>
 </html>
