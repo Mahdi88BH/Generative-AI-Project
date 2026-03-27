@@ -19,6 +19,7 @@ def register_view(request):
     else:
         form = ModernRegisterForm()
     return render(request, "register.html", {"form": form})
+
 def login_view(request):
     if request.method == "POST":
         form = AuthenticationForm(data=request.POST)
@@ -29,6 +30,9 @@ def login_view(request):
     else:
         form = AuthenticationForm()
     return render(request, "login.html", {"form": form})
+
+# --- CRUD EXAMENS (AVEC INTELLIGENCE AGENTIQUE) ---
+
 @login_required(login_url='login')
 def upload_view(request):
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
@@ -65,3 +69,16 @@ def upload_view(request):
         return redirect('exam_detail', pk=exam.pk)
     
     return render(request, 'upload.html', {'exam_history': history})
+
+@login_required(login_url='login')
+def exam_detail_view(request, pk):
+    exam = get_object_or_404(Exam, pk=pk, user=request.user)
+    history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
+    return render(request, 'upload.html', {'exam': exam, 'exam_history': history})
+
+@login_required(login_url='login')
+def delete_exam_view(request, pk):
+    exam = get_object_or_404(Exam, pk=pk, user=request.user)
+    if request.method == "POST":
+        exam.delete()
+    return redirect('upload')
