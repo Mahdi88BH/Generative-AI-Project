@@ -34,6 +34,9 @@
 
         /* Masquer l'input file réel */
         #exam_image { display: none; }
+
+        /* Style pour la prévisualisation immédiate */
+        .preview-mode { opacity: 0.6; filter: grayscale(50%); }
     </style>
 </head>
 <body>
@@ -87,14 +90,14 @@
     </aside>
 
     <main class="main-chat">
-        <div class="chat-scroller">
+        <div class="chat-scroller" id="chatContainer">
             {% if exam %}
                 <div class="message-row">
                     <div class="message-content">
                         <div class="avatar" style="background: #5436da; border-radius: 4px;">{{ user.username|slice:":1"|upper }}</div>
                         <div class="text">
-                            <p>Voici mon examen. Peux-tu résoudre les questions présentes sur cette image ?</p>
-                            <div style="margin-top: 15px; position: relative; display: inline-block;">
+                            <p>Voici mon examen. Peux-tu le résoudre ?</p>
+                            <div style="margin-top: 15px;">
                                 <img src="{{ exam.image.url }}" style="max-width: 100%; max-height: 400px; border-radius: 12px; border: 1px solid #444; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
                             </div>
                         </div>
@@ -106,27 +109,35 @@
                         <div class="avatar" style="background: #10a37f; border-radius: 4px;"><i class="fa-solid fa-robot"></i></div>
                         <div class="text">
                             {% if exam.result_text %}
-                                <div style="line-height: 1.6;">
-                                    {{ exam.result_text|linebreaks }}
-                                </div>
+                                <div style="line-height: 1.6;">{{ exam.result_text|linebreaks }}</div>
                             {% else %}
                                 <div class="typing-indicator" style="display: flex; align-items: center;">
-                                    <div class="typing-dots">
-                                        <span></span><span></span><span></span>
-                                    </div>
-                                    <span class="loading-text">L'IA locale (Ollama) analyse votre examen...</span>
+                                    <div class="typing-dots"><span></span><span></span><span></span></div>
+                                    <span class="loading-text">Analyse locale (Ollama) en cours...</span>
                                 </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             {% else %}
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #ececf1;">
+                <div id="welcomeScreen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color: #ececf1;">
                     <i class="fa-solid fa-brain fa-4x" style="color: #10a37f; margin-bottom: 20px; opacity: 0.8;"></i>
                     <h1 style="font-size: 2rem; font-weight: 600;">AI Exam Solver</h1>
-                    <p style="color: #8e8ea0; margin-top: 10px;">Envoyez une photo de votre sujet pour obtenir une correction détaillée.</p>
+                    <p style="color: #8e8ea0; margin-top: 10px;">Attachez une image pour commencer l'analyse.</p>
                 </div>
             {% endif %}
+
+            <div id="previewMessage" class="message-row" style="display: none;">
+                <div class="message-content">
+                    <div class="avatar" style="background: #5436da; border-radius: 4px;">{{ user.username|slice:":1"|upper }}</div>
+                    <div class="text">
+                        <p>Analyse de ce document demandée :</p>
+                        <div style="margin-top: 15px;">
+                            <img id="imagePreview" src="" class="preview-mode" style="max-width: 100%; max-height: 400px; border-radius: 12px; border: 1px solid #444;">
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="input-wrapper">
@@ -136,50 +147,78 @@
                     <label for="exam_image" class="icon-btn" title="Joindre une image">
                         <i class="fa-solid fa-paperclip fa-lg"></i>
                     </label>
-                    <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="showLoadingAndSubmit()">
+                    <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleFileSelect(this)">
                     
                     <div id="input-placeholder" style="flex-grow: 1; color: #8e8ea0; padding-left: 10px; font-size: 0.95rem;">
-                        Sélectionnez une image d'examen (.jpg, .png)...
+                        Sélectionnez une image d'examen...
                     </div>
                     
-                    <button type="button" class="icon-btn" onclick="document.getElementById('exam_image').click();" style="background:transparent; border:none; color: #10a37f;">
+                    <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="background:transparent; border:none; color: #10a37f; display: none;">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </div>
             </form>
             <p style="text-align:center; font-size:11px; color:#565869; margin-top:12px;">
-                Propulsé par <strong>Llama 3</strong> en local. La précision dépend de la qualité de l'image.
+                Agent local : Llama 3 / Phi-3 via Ollama.
             </p>
         </div>
     </main>
 </div>
 
 <script>
-    function showLoadingAndSubmit() {
-        // Sélectionner les éléments
-        const placeholder = document.getElementById('input-placeholder');
-        const mainChat = document.querySelector('.chat-scroller');
-        
-        // Changer le texte de l'input
-        placeholder.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Intelligence Artificielle en cours de réflexion...';
-        placeholder.style.color = '#10a37f';
+    const chatContainer = document.getElementById('chatContainer');
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const previewMessage = document.getElementById('previewMessage');
+    const imagePreview = document.getElementById('imagePreview');
+    const placeholder = document.getElementById('input-placeholder');
+    const sendBtn = document.getElementById('sendBtn');
+    const uploadForm = document.getElementById('uploadForm');
 
-        // Ajouter un message visuel dans la zone de chat pour rassurer l'utilisateur
+    // Étape 1 : Prévisualisation immédiate
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (welcomeScreen) welcomeScreen.style.display = 'none';
+                imagePreview.src = e.target.result;
+                previewMessage.style.display = 'flex';
+                placeholder.innerText = input.files[0].name;
+                placeholder.style.color = "#ececf1";
+                sendBtn.style.display = "block"; // On montre l'avion
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    // Étape 2 : Lancement de l'analyse (Simule ChatGPT)
+    function submitExam() {
+        // Changement UI dans la barre
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        sendBtn.disabled = true;
+        placeholder.innerHTML = 'Intelligence Artificielle en cours de réflexion...';
+        
+        // Ajout immédiat de la bulle de pensée dans le chat
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'message-row ai-row';
         loadingDiv.innerHTML = `
             <div class="message-content">
                 <div class="avatar" style="background: #10a37f;"><i class="fa-solid fa-robot"></i></div>
                 <div class="text">
-                    <p><i class="fa-solid fa-cog fa-spin"></i> Lancement de l'analyse locale (Ollama)... Cela peut prendre une minute selon votre processeur.</p>
+                    <div class="typing-indicator" style="display: flex; align-items: center;">
+                        <div class="typing-dots"><span></span><span></span><span></span></div>
+                        <span class="loading-text">Analyse locale (Ollama) en cours...</span>
+                    </div>
                 </div>
             </div>
         `;
-        mainChat.appendChild(loadingDiv);
-        mainChat.scrollTop = mainChat.scrollHeight;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
 
-        // Envoyer le formulaire
-        document.getElementById('uploadForm').submit();
+        // On laisse une demi-seconde pour l'effet visuel puis on submit
+        setTimeout(() => {
+            uploadForm.submit();
+        }, 500);
     }
 </script>
 
