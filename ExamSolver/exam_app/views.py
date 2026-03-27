@@ -19,3 +19,13 @@ def register_view(request):
     else:
         form = ModernRegisterForm()
     return render(request, "register.html", {"form": form})
+def login_view(request):
+    if request.method == "POST":
+        form = AuthenticationForm(data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect("upload")
+    else:
+        form = AuthenticationForm()
+    return render(request, "login.html", {"form": form})
