@@ -24,7 +24,7 @@ The system follows a modular, three-layer architecture separating:
 <p>Follow these steps to deploy the project locally:</p>
 <ol>
     <li><strong>Clone & Env:</strong> 
-        <code>git clone https://github.com/Mahdi88BH/Generative-AI-Project.git</code><br>
+        <code> git clone [repository-url]</code><br>
         <code>python -m venv venv</code> (Activate with <code>venv\Scripts\activate</code>)
     </li>
     <li><strong>Install Dependencies:</strong> 
@@ -32,8 +32,8 @@ The system follows a modular, three-layer architecture separating:
     </li>
     <li><strong>External Tools:</strong>
         <ul>
-            <li>Install <strong>Tesseract OCR</strong> https://github.com/tesseract-ocr/tesseract.</li>
-            <li>Install <strong>Ollama</strong> https://ollama.com/ and run <code>ollama pull llama3</code>.</li>
+            <li>Install <strong>Tesseract OCR</strong> </li>
+            <li>Install <strong>Ollama</strong> </code>.</li>
         </ul>
     </li>
     <li><strong>Database Setup:</strong>
