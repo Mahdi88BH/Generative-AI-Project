@@ -171,6 +171,41 @@
     </style>
 </head>
 <body>
-    
+    <body>
+    <div class="bg-glow"></div>
+
+    <div class="auth-card">
+        <div class="logo-area">
+            <i class="fa-solid fa-brain"></i>
+            <h2>Bon retour</h2>
+            <p class="subtitle">Connectez-vous pour continuer l'analyse.</p>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="errorlist">
+                    <i class="fa-solid fa-circle-exclamation"></i> Identifiants incorrects.
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                </div>
+            {% endfor %}
+
+            <button type="submit" class="btn-submit">
+                Continuer <i class="fa-solid fa-bolt"></i>
+            </button>
+        </form>
+        
+        <div class="footer-link">
+            Pas encore de compte ? <a href="{% url 'register' %}">S'inscrire gratuitement</a>
+        </div>
+    </div>
+</body>
 </body>
 </html>
