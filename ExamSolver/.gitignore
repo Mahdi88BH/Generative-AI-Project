@@ -1,0 +1,30 @@
+# --- Python & Environnement ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Django ---
+db.sqlite3
+media/
+static_root/
+staticfiles/
+
+# --- Sécurité (TRÈS IMPORTANT) ---
+.env
+
+# --- Systèmes d'exploitation ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDE (VS Code / PyCharm) ---
+.vscode/
+.idea/
+
+# --- Intelligence Artificielle ---
+*.gguf
+*.bin
+models/
