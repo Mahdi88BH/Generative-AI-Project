@@ -4,75 +4,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Exam Solver | Dashboard</title>
+    <title>Nexus AI | Dashboard</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
-        /* --- VARIABLES & BASE --- */
         :root {
-            --sidebar-bg: #202123;
-            --main-bg: #343541;
-            --item-hover: #2b2c2f;
+            --sidebar-bg: rgba(10, 11, 13, 0.9);
+            --main-bg: #0a0b0d;
+            --item-hover: rgba(16, 163, 127, 0.15);
             --text-color: #ececf1;
-            --input-bg: #40414f;
+            --input-bg: rgba(33, 34, 38, 0.7);
             --accent-green: #10a37f;
-            --ai-row-bg: #444654;
+            --ai-row-bg: rgba(33, 34, 38, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body, html {
             height: 100%;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: var(--main-bg);
             color: var(--text-color);
             overflow: hidden;
         }
 
-        .app-wrapper { display: flex; height: 100vh; width: 100vw; }
+        /* --- 3D BACKGROUND CANVAS --- */
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
+
+        .app-wrapper { 
+            display: flex; 
+            height: 100vh; 
+            width: 100vw; 
+            position: relative; 
+            backdrop-filter: blur(10px);
+        }
 
         /* --- SIDEBAR --- */
         .sidebar {
-            width: 260px;
+            width: 280px;
             background-color: var(--sidebar-bg);
-            padding: 0.8rem;
+            backdrop-filter: blur(20px);
+            padding: 1.2rem;
             display: flex;
             flex-direction: column;
-            z-index: 10;
+            border-right: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+            z-index: 100;
         }
 
         .new-chat-btn {
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 5px;
-            padding: 12px;
-            background: transparent;
+            border: 1px solid var(--accent-green);
+            border-radius: 12px;
+            padding: 14px;
+            background: rgba(16, 163, 127, 0.1);
             color: white;
             cursor: pointer;
-            transition: 0.2s;
-            margin-bottom: 20px;
+            transition: 0.3s;
+            margin-bottom: 25px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.85rem;
         }
 
-        .new-chat-btn:hover { background: var(--item-hover); }
+        .new-chat-btn:hover { 
+            background: var(--accent-green); 
+            box-shadow: 0 0 15px rgba(16, 163, 127, 0.4);
+        }
 
         .history-container { flex-grow: 1; overflow-y: auto; }
+        .history-container::-webkit-scrollbar { width: 3px; }
+        .history-container::-webkit-scrollbar-thumb { background: var(--accent-green); }
 
         .history-item {
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 0.85rem;
+            padding: 12px 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
             cursor: pointer;
             color: #d1d1d6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             transition: 0.2s;
-            text-decoration: none;
+            margin-bottom: 6px;
+            border: 1px solid transparent;
         }
 
-        .history-item:hover { background: var(--item-hover); }
+        .history-item:hover { 
+            background: var(--item-hover); 
+            border-color: var(--glass-border);
+            color: white;
+        }
 
-        /* --- CHAT AREA --- */
+        /* --- MAIN CHAT --- */
         .main-chat {
             flex-grow: 1;
             display: flex;
@@ -80,137 +117,165 @@
             position: relative;
         }
 
+        .mobile-header {
+            display: none;
+            padding: 15px 20px;
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--glass-border);
+            justify-content: space-between;
+            align-items: center;
+        }
+
         .chat-scroller {
             flex-grow: 1;
             overflow-y: auto;
-            padding-bottom: 180px; /* Espace pour l'input fixe */
+            padding-bottom: 220px;
+            scroll-behavior: smooth;
         }
 
-        .message-row { width: 100%; padding: 2rem 0; border-bottom: 1px solid rgba(0,0,0,0.1); }
-        .ai-row { background-color: var(--ai-row-bg); }
+        .message-row { width: 100%; padding: 3rem 0; border-bottom: 1px solid var(--glass-border); }
+        .ai-row { background-color: var(--ai-row-bg); backdrop-filter: blur(5px); }
 
         .message-content {
-            max-width: 800px;
+            max-width: 850px;
             margin: 0 auto;
             display: flex;
-            gap: 1.5rem;
-            padding: 0 1.5rem;
+            gap: 2rem;
+            padding: 0 2rem;
         }
 
         .avatar {
-            width: 30px; height: 30px;
-            border-radius: 3px;
+            width: 36px; height: 36px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             flex-shrink: 0;
+            font-weight: 800;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .text { line-height: 1.6; font-size: 0.95rem; flex-grow: 1; }
+        .text { line-height: 1.8; font-size: 1rem; color: #e1e1e6; }
 
-        /* --- INPUT BOX --- */
+        /* --- INPUT --- */
         .input-wrapper {
             position: absolute;
             bottom: 0;
             width: 100%;
-            background: linear-gradient(180deg, rgba(52,53,65,0) 0%, #343541 40%);
-            padding: 2rem 0;
+            background: linear-gradient(180deg, rgba(10, 11, 13, 0) 0%, #0a0b0d 60%);
+            padding: 3rem 0;
         }
 
         .input-container {
             max-width: 800px;
             margin: 0 auto;
             background: var(--input-bg);
-            border-radius: 12px;
-            padding: 12px 15px;
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 16px 24px;
             display: flex;
             align-items: center;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .icon-btn { color: #acacbe; cursor: pointer; padding: 5px; transition: 0.2s; }
-        .icon-btn:hover { color: white; }
+        .input-container:focus-within { 
+            border-color: var(--accent-green);
+            box-shadow: 0 0 20px rgba(16, 163, 127, 0.2);
+        }
+
+        .icon-btn { color: #8e8ea0; cursor: pointer; padding: 10px; transition: 0.3s; border: none; background: none; }
+        .icon-btn:hover { color: var(--accent-green); transform: scale(1.15); }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 850px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                height: 100%;
+            }
+            .sidebar.active { transform: translateX(280px); }
+            .mobile-header { display: flex; }
+            .input-container { margin: 0 20px; }
+        }
 
         /* --- ANIMATIONS --- */
         .typing-dots span {
-            width: 8px; height: 8px; margin: 0 2px;
-            background-color: #8e8ea0; border-radius: 50%;
+            width: 7px; height: 7px; margin: 0 3px;
+            background-color: var(--accent-green); border-radius: 50%;
             display: inline-block; animation: bounce 1.4s infinite ease-in-out both;
         }
-        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-        
         @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
-
-        .loading-text { color: var(--accent-green); font-weight: 600; margin-left: 10px; font-size: 0.9rem; }
-        .preview-mode { opacity: 0.5; filter: contrast(1.2); }
-
-        /* --- RESPONSIVE --- */
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .message-content { gap: 1rem; }
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1.3); opacity: 1; }
         }
     </style>
 </head>
 <body>
 
+<div id="canvas-container"></div>
+
 <div class="app-wrapper">
-    <aside class="sidebar">
+    <div id="sidebarOverlay" onclick="toggleSidebar()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:90;"></div>
+
+    <aside class="sidebar" id="sidebar">
         <button class="new-chat-btn" onclick="location.href='{% url 'upload' %}'">
-            <i class="fa fa-plus"></i> Nouvel Examen
+            <i class="fa fa-plus"></i> Nouveau Scan Agentique
         </button>
         
         <div class="history-container">
-            <div style="color: #8e8ea0; font-size: 0.7rem; margin-bottom: 12px; padding-left: 10px; text-transform: uppercase; letter-spacing: 1px;">Historique</div>
+            <div style="color: var(--accent-green); font-size: 0.75rem; margin-bottom: 20px; padding-left: 10px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;">Flux Historique</div>
             {% for h in exam_history %}
-            <div class="history-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <a href="{% url 'exam_detail' h.pk %}" style="color: inherit; text-decoration: none; flex-grow: 1; display: flex; align-items: center; gap: 10px;">
-                    <i class="fa-regular fa-file-lines"></i> 
-                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">
-                        Examen #{{ h.id }}
-                    </span>
+            <div class="history-item">
+                <a href="{% url 'exam_detail' h.pk %}" style="color: inherit; text-decoration: none; flex-grow: 1; display: flex; align-items: center; gap: 12px; overflow: hidden;">
+                    <i class="fa-solid fa-bolt" style="font-size: 0.8rem; color: var(--accent-green);"></i> 
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">ID #{{ h.id }} - Analyse</span>
                 </a>
-                <form action="{% url 'delete_exam' h.pk %}" method="POST" style="margin: 0;" onsubmit="return confirm('Supprimer ?');">
+                <form action="{% url 'delete_exam' h.pk %}" method="POST" onsubmit="return confirm('Confirmer la suppression ?');">
                     {% csrf_token %}
-                    <button type="submit" style="background: transparent; border: none; color: #565869; cursor: pointer;">
+                    <button type="submit" class="icon-btn" style="padding: 5px;">
                         <i class="fa-solid fa-trash-can fa-xs"></i>
                     </button>
                 </form>
             </div>
             {% empty %}
-                <p style="font-size: 0.8rem; color: #565869; padding-left: 10px;">Aucun historique.</p>
+                <p style="font-size: 0.85rem; color: #565869; padding-left: 10px; font-style: italic;">Aucune trace d'activité.</p>
             {% endfor %}
         </div>
 
-        <div style="margin-top: auto; padding: 15px 10px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                <div class="avatar" style="background: var(--accent-green);">{{ user.username|slice:":1"|upper }}</div>
-                <div style="font-size: 0.9rem; font-weight: 500; color: #ececf1;">{{ user.username }}</div>
+        <div style="margin-top: auto; padding: 25px 10px; border-top: 1px solid var(--glass-border);">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 25px;">
+                <div class="avatar" style="background: var(--accent-green); color: white; border: 2px solid rgba(255,255,255,0.1);">{{ user.username|slice:":1"|upper }}</div>
+                <div style="font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px;">{{ user.username }}</div>
             </div>
             <form action="{% url 'logout' %}" method="POST">
                 {% csrf_token %}
-                <button type="submit" style="background: transparent; border: none; color: #ff4b4b; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
-                    <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+                <button type="submit" style="background: none; border: 1px solid rgba(255, 75, 75, 0.3); color: #ff4b4b; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 0.85rem; font-weight: 700; width: 100%; padding: 12px; border-radius: 10px; transition: 0.3s;">
+                    <i class="fa-solid fa-power-off"></i> Déconnexion
                 </button>
             </form>
         </div>
     </aside>
 
     <main class="main-chat">
+        <header class="mobile-header">
+            <button class="icon-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars-staggered fa-lg"></i></button>
+            <span style="font-weight: 800; font-size: 1rem; color: var(--accent-green);">NEXUS AI</span>
+            <button class="icon-btn" onclick="location.href='{% url 'upload' %}'"><i class="fa-solid fa-plus-circle"></i></button>
+        </header>
+
         <div class="chat-scroller" id="chatContainer">
             {% if exam %}
                 <div class="message-row">
                     <div class="message-content">
-                        <div class="avatar" style="background: #5436da;">{{ user.username|slice:":1"|upper }}</div>
+                        <div class="avatar" style="background: linear-gradient(135deg, #5436da, #8e2de2); color: white;">{{ user.username|slice:":1"|upper }}</div>
                         <div class="text">
-                            <p>Voici mon examen. Peux-tu le résoudre ?</p>
-                            <div style="margin-top: 15px;">
-                                <img src="{{ exam.image.url }}" style="max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid #444;">
+                            <p style="opacity: 0.8; font-size: 0.9rem; margin-bottom: 15px;">Requête d'analyse transmise au moteur agentique...</p>
+                            <div style="position: relative;">
+                                <img src="{{ exam.image.url }}" style="max-width: 100%; border-radius: 20px; border: 1px solid var(--glass-border); filter: brightness(0.9);">
+                                <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; border: 1px solid var(--accent-green);">SOURCE DOCUMENT</div>
                             </div>
                         </div>
                     </div>
@@ -218,14 +283,14 @@
 
                 <div class="message-row ai-row">
                     <div class="message-content">
-                        <div class="avatar" style="background: var(--accent-green);"><i class="fa-solid fa-robot"></i></div>
+                        <div class="avatar" style="background: var(--accent-green); color: white; box-shadow: 0 0 15px var(--primary-glow);"><i class="fa-solid fa-atom"></i></div>
                         <div class="text">
                             {% if exam.result_text %}
-                                <div>{{ exam.result_text|linebreaks }}</div>
+                                <div style="white-space: pre-wrap; font-family: 'Inter', sans-serif;">{{ exam.result_text }}</div>
                             {% else %}
-                                <div class="typing-indicator" style="display: flex; align-items: center;">
+                                <div class="typing-indicator" style="display: flex; align-items: center; gap: 20px;">
                                     <div class="typing-dots"><span></span><span></span><span></span></div>
-                                    <span class="loading-text">Intelligence Artificielle en cours...</span>
+                                    <span style="color: var(--accent-green); font-weight: 700; letter-spacing: 0.5px; font-size: 0.9rem;">SYNTHÈSE MULTI-AGENTS EN COURS...</span>
                                 </div>
                             {% endif %}
                         </div>
@@ -233,18 +298,21 @@
                 </div>
             {% else %}
                 <div id="welcomeScreen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-                    <i class="fa-solid fa-brain fa-4x" style="color: var(--accent-green); margin-bottom: 20px; opacity: 0.5;"></i>
-                    <h1 style="font-size: 2rem;">AI Exam Solver</h1>
-                    <p style="color: #8e8ea0; margin-top: 10px;">Uploadez une image pour commencer.</p>
+                    <div style="margin-bottom: 40px; position: relative;">
+                        <i class="fa-solid fa-atom fa-spin-slow fa-5x" style="color: var(--accent-green); opacity: 0.3; animation: spin 10s linear infinite;"></i>
+                        <i class="fa-solid fa-brain fa-3x" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white;"></i>
+                    </div>
+                    <h1 style="font-size: 2.8rem; font-weight: 800; letter-spacing: -2px; margin-bottom: 10px;">NEXUS <span style="color: var(--accent-green);">CORE</span></h1>
+                    <p style="color: #8e8ea0; font-size: 1.1rem; font-weight: 500;">Prêt pour une nouvelle extraction de savoir.</p>
                 </div>
             {% endif %}
 
             <div id="previewMessage" class="message-row" style="display: none;">
                 <div class="message-content">
-                    <div class="avatar" style="background: #5436da;">{{ user.username|slice:":1"|upper }}</div>
+                    <div class="avatar" style="background: #5436da; color: white;">{{ user.username|slice:":1"|upper }}</div>
                     <div class="text">
-                        <p>Analyse demandée pour :</p>
-                        <img id="imagePreview" src="" class="preview-mode" style="max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 10px;">
+                        <p id="fileNameDisplay" style="font-weight: 800; margin-bottom: 15px; color: var(--accent-green); text-transform: uppercase; font-size: 0.8rem;"></p>
+                        <img id="imagePreview" src="" style="max-width: 100%; max-height: 400px; border-radius: 20px; border: 2px solid var(--accent-green); opacity: 0.6;">
                     </div>
                 </div>
             </div>
@@ -254,19 +322,52 @@
             <form method="POST" enctype="multipart/form-data" id="uploadForm">
                 {% csrf_token %}
                 <div class="input-container">
-                    <label for="exam_image" class="icon-btn"><i class="fa-solid fa-paperclip fa-lg"></i></label>
-                    <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleFileSelect(this)">
-                    <div id="input-placeholder" style="flex-grow: 1; color: #8e8ea0; padding-left: 10px;">Sélectionnez un examen...</div>
-                    <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none;">
-                        <i class="fa-solid fa-paper-plane"></i>
+                    <label for="exam_image" class="icon-btn" title="Uploader un document"><i class="fa-solid fa-plus-circle fa-lg"></i></label>
+                    <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleFileSelect(this)" style="display: none;">
+                    <div id="input-placeholder" style="flex-grow: 1; color: #6e6e80; padding-left: 15px; font-weight: 600;">Injecter un examen dans le flux...</div>
+                    <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none; color: var(--accent-green);">
+                        <i class="fa-solid fa-paper-plane-top fa-lg"></i> EXÉCUTER
                     </button>
                 </div>
             </form>
+            <p style="text-align: center; font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">Powered by Llama 3 Agentic Infrastructure</p>
         </div>
     </main>
 </div>
 
 <script>
+    // --- 3D PARTICLES BACKGROUND ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    for (let i = 0; i < 5000; i++) {
+        vertices.push(THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000));
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x10a37f, size: 2.5, transparent: true, opacity: 0.4 }));
+    scene.add(particles);
+    camera.position.z = 1000;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        particles.rotation.x += 0.0003;
+        particles.rotation.y += 0.0003;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- CHAT LOGIC ---
     const chatContainer = document.getElementById('chatContainer');
     const welcomeScreen = document.getElementById('welcomeScreen');
     const previewMessage = document.getElementById('previewMessage');
@@ -274,6 +375,13 @@
     const placeholder = document.getElementById('input-placeholder');
     const sendBtn = document.getElementById('sendBtn');
     const uploadForm = document.getElementById('uploadForm');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    function toggleSidebar() {
+        sidebar.classList.toggle('active');
+        overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+    }
 
     function handleFileSelect(input) {
         if (input.files && input.files[0]) {
@@ -282,8 +390,9 @@
                 if (welcomeScreen) welcomeScreen.style.display = 'none';
                 imagePreview.src = e.target.result;
                 previewMessage.style.display = 'flex';
-                placeholder.innerText = input.files[0].name;
-                sendBtn.style.display = "block";
+                document.getElementById('fileNameDisplay').innerText = "VECTEUR DETECTÉ : " + input.files[0].name;
+                placeholder.innerText = "PRÊT POUR INJECTION";
+                sendBtn.style.display = "flex";
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
             reader.readAsDataURL(input.files[0]);
@@ -291,9 +400,10 @@
     }
 
     function submitExam() {
-        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        placeholder.innerHTML = 'Analyse en cours...';
-        uploadForm.submit();
+        sendBtn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
+        placeholder.innerHTML = 'SYNC AVEC LLAMA 3...';
+        sendBtn.disabled = true;
+        setTimeout(() => uploadForm.submit(), 500);
     }
 </script>
 
