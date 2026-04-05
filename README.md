@@ -1,4 +1,3 @@
-
 <div class="container">
 
 <h1>🎓 Agentic AI Exam Solver</h1>
@@ -14,10 +13,37 @@ It combines a modern web interface with advanced agent orchestration to deliver 
 The system follows a modular, three-layer architecture separating:
 </p>
 <ul>
-    <li><span class="highlight">Reasoning (LLMs)</span> → the brain</li>
-    <li><span class="highlight">Tools & execution</span> → the body</li>
-    <li><span class="highlight">User interface</span> → interaction layer</li>
+    <li><span class="highlight">Reasoning (LLMs)</span> → the brain (Ollama / Llama 3)</li>
+    <li><span class="highlight">Tools & execution</span> → the body (Tesseract / OpenCV)</li>
+    <li><span class="highlight">User interface</span> → interaction layer (Django)</li>
 </ul>
+</div>
+
+<div class="card">
+<h2>🚀 Quick Start & Deployment</h2>
+<p>Follow these steps to deploy the project locally:</p>
+<ol>
+    <li><strong>Clone & Env:</strong> 
+        <code> git clone [repository-url]</code><br>
+        <code>python -m venv venv</code> (Activate with <code>venv\Scripts\activate</code>)
+    </li>
+    <li><strong>Install Dependencies:</strong> 
+        <code>pip install -r ../requirements.txt</code>
+    </li>
+    <li><strong>External Tools:</strong>
+        <ul>
+            <li>Install <strong>Tesseract OCR</strong> </li>
+            <li>Install <strong>Ollama</strong> </code>.</li>
+        </ul>
+    </li>
+    <li><strong>Database Setup:</strong>
+        <code>python manage.py makemigrations</code>
+        <code>python manage.py migrate</code>
+    </li>
+    <li><strong>Run:</strong>
+        <code>python manage.py runserver</code>
+    </li>
+</ol>
 </div>
 
 <div class="card">
@@ -45,40 +71,9 @@ The system follows a modular, three-layer architecture separating:
 <h2>3. Tool Layer (MCP Server)</h2>
 <p>Implements the Model Context Protocol (MCP) to separate reasoning from execution.</p>
 <ul>
-    <li><strong>OCR Tool:</strong> OpenCV + Tesseract/PaddleOCR</li>
+    <li><strong>OCR Tool:</strong> OpenCV + Tesseract</li>
     <li><strong>Math Solver:</strong> Symbolic computation engine</li>
     <li><strong>Python Executor:</strong> Secure sandbox execution</li>
-</ul>
-</div>
-
-<!-- <div class="card">
-<h2>📂 Project Structure</h2>
-<pre>
-ai_exam_solver/
-├── manage.py
-├── config/
-├── exam_app/
-│   ├── services/
-│   ├── models.py
-│   └── templates/
-├── agents/
-├── langgraph_workflow/
-├── mcp_server/
-│   ├── server.py
-│   └── tools/
-└── media/
-</pre>
-</div> -->
-
-<div class="card">
-<h2>🚀 Execution Pipeline</h2>
-<ul>
-    <li><strong>Upload:</strong> User submits an exam image</li>
-    <li><strong>Pre-processing:</strong> Image enhancement using OpenCV</li>
-    <li><strong>Analysis:</strong> Identify question types</li>
-    <li><strong>Solving:</strong> Generate answers using reasoning</li>
-    <li><strong>Verification:</strong> Validate results</li>
-    <li><strong>Delivery:</strong> Display structured report</li>
 </ul>
 </div>
 
@@ -106,5 +101,9 @@ ai_exam_solver/
     <li>Local model support (privacy-friendly)</li>
 </ul>
 </div>
+
+<p style="text-align:center; font-size:12px; color:#8e8ea0; margin-top:20px;">
+    Master 2 Project - Computer Vision & Generative AI Integration
+</p>
 
 </div>
