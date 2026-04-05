@@ -1,4 +1,3 @@
-# ai_engine/main.py
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import shutil
 import os
