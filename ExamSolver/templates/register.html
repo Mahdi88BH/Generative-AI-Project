@@ -1,200 +1,288 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Solver | Inscription</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Nexus AI | Inscription</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <style>
         :root {
             --primary: #10a37f;
-            --primary-hover: #1a7f64;
-            --bg-dark: #202123;
-            --card-bg: rgba(52, 53, 65, 0.95);
-            --input-bg: #3e3f4b;
-            --text-light: #ececf1;
-            --text-dim: #8e8ea0;
+            --primary-glow: rgba(16, 163, 127, 0.4);
+            --dark: #0a0b0d;
+            --white: #ffffff;
+            --gray: #8e8ea0;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow-x: hidden; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: radial-gradient(circle at center, #343541 0%, #202123 100%);
-            color: var(--text-light);
-            height: 100vh;
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--dark); 
+            color: var(--white); 
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+        }
+
+        /* --- NAVIGATION --- */
+        nav {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 0; width: 100%;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; }
+        
+        .logo { 
+            font-size: 1.6rem; 
+            font-weight: 800; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            color: var(--primary); 
+            text-decoration: none; 
+        }
+        
+        .nav-links { display: flex; gap: 30px; list-style: none; }
+        .nav-links a { color: var(--gray); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
+        .nav-links a:hover { color: var(--white); }
+
+        /* --- AUTH WRAPPER --- */
+        .auth-wrapper {
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            padding: 100px 24px 40px 24px;
         }
 
-        /* Arrière-plan animé subtil */
-        .bg-glow {
-            position: absolute;
-            width: 400px; height: 400px;
-            background: var(--primary);
-            filter: blur(150px);
-            opacity: 0.1;
-            z-index: 0;
-            animation: move 20s infinite alternate;
-        }
-
-        .auth-card {
-            position: relative;
-            z-index: 1;
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
+        .register-card {
+            background: var(--glass);
+            backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
             padding: 3rem;
-            border-radius: 24px;
+            border-radius: 35px;
             width: 100%;
-            max-width: 440px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        .auth-card h2 {
+            max-width: 460px;
             text-align: center;
-            font-weight: 600;
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            letter-spacing: -1px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            animation: cardAppear 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 85vh;
+            overflow-y: auto;
         }
 
-        .auth-card p.subtitle {
-            text-align: center;
-            color: var(--text-dim);
-            font-size: 0.9rem;
-            margin-bottom: 2rem;
+        /* Scrollbar subtile pour la carte */
+        .register-card::-webkit-scrollbar { width: 4px; }
+        .register-card::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
+        .logo-box {
+            color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 15px var(--primary-glow));
+        }
+
+        h2 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -1px; }
+        .subtitle { color: var(--gray); font-size: 0.9rem; margin-bottom: 2rem; }
+
+        /* --- FORM --- */
+        form { text-align: left; }
         .form-group { margin-bottom: 1.2rem; }
 
-        .form-group label {
+        label {
             display: block;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.7rem;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--primary);
             margin-bottom: 8px;
-            color: var(--text-dim);
-            letter-spacing: 0.5px;
+            padding-left: 5px;
         }
 
-        /* Style des inputs Django injectés */
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+        input {
             width: 100%;
-            padding: 14px 16px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: var(--input-bg);
-            color: white;
-            font-size: 1rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 14px 18px;
+            color: var(--white);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
         }
 
         input:focus {
             outline: none;
             border-color: var(--primary);
-            background: #4a4b59;
-            box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 4px var(--primary-glow);
         }
 
         .btn-submit {
             width: 100%;
-            padding: 14px;
             background: var(--primary);
             color: white;
             border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 600;
+            padding: 16px;
+            border-radius: 15px;
             font-size: 1rem;
-            margin-top: 1.5rem;
-            transition: transform 0.2s, background 0.2s;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 1rem;
             display: flex;
-            justify-content: center;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.4s;
+            box-shadow: 0 10px 20px var(--primary-glow);
         }
 
         .btn-submit:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px var(--primary-glow);
         }
 
-        .btn-submit:active { transform: translateY(0); }
+        .errorlist { color: #ff6b6b; font-size: 0.75rem; margin-top: 5px; display: block; }
 
-        .errorlist {
-            color: #ff6b6b;
-            list-style: none;
-            font-size: 0.8rem;
-            margin-top: 5px;
-            padding: 0;
-        }
-
-        .footer-link {
-            text-align: center;
-            margin-top: 2rem;
-            font-size: 0.9rem;
-            color: var(--text-dim);
-        }
-
-        .footer-link a {
-            color: var(--primary);
+        .footer-text { margin-top: 2rem; font-size: 0.9rem; color: var(--gray); }
+        .footer-text a { color: var(--primary); text-decoration: none; font-weight: 700; }
+        
+        .back-home {
+            margin-top: 1.5rem;
+            display: inline-block;
+            color: var(--gray);
+            font-size: 0.85rem;
             text-decoration: none;
-            font-weight: 600;
+            transition: 0.3s;
         }
+        .back-home:hover { color: var(--white); }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes move {
-            from { transform: translate(-50%, -50%); }
-            to { transform: translate(50%, 50%); }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
         }
     </style>
 </head>
 <body>
-     <div class="bg-glow"></div>
 
-    <div class="auth-card">
-        <h2>Rejoindre l'aventure</h2>
-        <p class="subtitle">Créez votre compte AI Solver en quelques secondes.</p>
+    <div id="canvas-container"></div>
 
-        <form method="POST">
-            {% csrf_token %}
+    <nav>
+        <div class="container nav-content">
+            <a href="{% url 'index' %}" class="logo">
+                <i class="fa-solid fa-atom"></i> NEXUS AI
+            </a>
+            <ul class="nav-links">
+                <li><a href="{% url 'index' %}#accueil">Accueil</a></li>
+                <li><a href="{% url 'index' %}#services">Services</a></li>
+                <li><a href="{% url 'index' %}#subscriptions">Plans</a></li>
+            </ul>
+            <div class="auth-btns">
+                <a href="{% url 'login' %}" class="btn-submit" style="padding: 10px 20px; font-size: 0.85rem; margin: 0;">Connexion</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="auth-wrapper">
+        <div class="register-card">
+            <div class="logo-box">
+                <i class="fa-solid fa-user-plus"></i>
+            </div>
             
-            {% if form.non_field_errors %}
-                <div class="errorlist" style="margin-bottom: 15px; text-align: center;">
-                    {{ form.non_field_errors }}
-                </div>
-            {% endif %}
+            <h2>Rejoindre l'aventure</h2>
+            <p class="subtitle">Créez votre compte Nexus AI en quelques secondes</p>
 
-            {% for field in form %}
-                <div class="form-group">
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.errors %}
-                        {% for error in field.errors %}
-                            <span class="errorlist"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</span>
-                        {% endfor %}
-                    {% endif %}
-                </div>
-            {% endfor %}
+            <form method="POST">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                    <div style="background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; padding: 10px; border-radius: 12px; color: #ff6b6b; font-size: 0.85rem; margin-bottom: 15px;">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
 
-            <button type="submit" class="btn-submit">
-                Créer mon compte <i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </form>
-        
-        <div class="footer-link">
-            Vous avez déjà un compte ? <a href="{% url 'login' %}">Connexion</a>
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <span class="errorlist"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="btn-submit">
+                    Créer mon compte <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="footer-text">
+                Déjà inscrit ? <a href="{% url 'login' %}">Se connecter</a>
+            </div>
+
+            <a href="{% url 'index' %}" class="back-home">
+                <i class="fa-solid fa-house"></i> Retour à l'accueil
+            </a>
         </div>
     </div>
+
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 4000; i++) {
+            vertices.push(THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000));
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x10a37f, size: 2.5, transparent: true, opacity: 0.5 }));
+        scene.add(particles);
+        camera.position.z = 1000;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.x += 0.0004;
+            particles.rotation.y += 0.0004;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
