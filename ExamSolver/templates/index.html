@@ -1,0 +1,251 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI | L'Avenir de l'Analyse Agentique</title>
+    
+    <meta name="description" content="Plateforme révolutionnaire de résolution d'examens par IA multi-agents.">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #10a37f;
+            --primary-glow: rgba(16, 163, 127, 0.3);
+            --dark: #0a0b0d;
+            --dark-soft: #16171a;
+            --white: #ffffff;
+            --gray: #8e8ea0;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--dark); 
+            color: var(--white); 
+            overflow-x: hidden; 
+        }
+
+        /* --- 3D BACKGROUND CANVAS --- */
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, #1a1b1f 0%, #0a0b0d 100%);
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* --- NAVIGATION --- */
+        nav {
+            height: 90px;
+            display: flex;
+            align-items: center;
+            position: fixed;
+            top: 0; width: 100%;
+            z-index: 1000;
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .logo { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--primary); }
+        
+        .nav-links { display: flex; gap: 35px; list-style: none; }
+        .nav-links a { color: var(--gray); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
+        .nav-links a:hover { color: var(--white); text-shadow: 0 0 10px var(--primary-glow); }
+
+        .auth-btns { display: flex; gap: 20px; align-items: center; }
+        .btn-glass { padding: 10px 25px; border-radius: 50px; border: 1px solid var(--glass-border); color: white; text-decoration: none; transition: 0.3s; }
+        .btn-glass:hover { background: var(--glass); }
+        .btn-primary { padding: 10px 25px; border-radius: 50px; background: var(--primary); color: white; text-decoration: none; font-weight: 600; box-shadow: 0 0 20px var(--primary-glow); }
+
+        /* --- HERO SECTION --- */
+        .hero { height: 100vh; display: flex; align-items: center; position: relative; }
+        .hero-content { max-width: 700px; }
+        .hero h1 { font-size: 4.5rem; line-height: 1; font-weight: 800; margin-bottom: 30px; letter-spacing: -2px; }
+        .hero h1 span { 
+            background: linear-gradient(90deg, #10a37f, #5436da);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p { font-size: 1.25rem; color: var(--gray); margin-bottom: 40px; line-height: 1.6; }
+
+        /* --- SERVICES (Cards) --- */
+        .services { padding: 120px 0; }
+        .grid-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .service-card { 
+            background: var(--glass); 
+            border: 1px solid var(--glass-border); 
+            padding: 40px; 
+            border-radius: 24px; 
+            transition: 0.4s;
+        }
+        .service-card:hover { border-color: var(--primary); transform: translateY(-10px); background: rgba(16, 163, 127, 0.05); }
+        .service-card i { font-size: 2.5rem; color: var(--primary); margin-bottom: 25px; }
+
+        /* --- PRICING --- */
+        .pricing { padding: 120px 0; background: var(--dark-soft); border-radius: 50px 50px 0 0; }
+        .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; margin-top: 60px; }
+        .price-card { 
+            padding: 50px; border-radius: 30px; border: 1px solid var(--glass-border); 
+            text-align: center; position: relative; overflow: hidden;
+        }
+        .price-card.pro { border-color: var(--primary); background: rgba(16, 163, 127, 0.02); }
+        .price-card h3 { font-size: 1.8rem; margin-bottom: 15px; }
+        .price-card .cost { font-size: 3.5rem; font-weight: 800; margin-bottom: 30px; }
+        .price-card .cost span { font-size: 1rem; color: var(--gray); }
+        .price-card ul { list-style: none; text-align: left; margin-bottom: 40px; color: var(--gray); }
+        .price-card li { margin-bottom: 15px; display: flex; gap: 10px; }
+        .price-card li i { color: var(--primary); }
+
+        /* --- FOOTER --- */
+        footer { padding: 80px 0 40px; border-top: 1px solid var(--glass-border); text-align: center; }
+        .footer-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 20px; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <nav>
+        <div class="container nav-content">
+            <div class="logo">
+                <i class="fa-solid fa-atom"></i> NEXUS AI
+            </div>
+            <ul class="nav-links">
+                <li><a href="#accueil">Accueil</a></li>
+                <li><a href="#services">Services</a></li>
+                <li><a href="#subscriptions">Subscriptions</a></li>
+                <li><a href="#apropos">À Propos</a></li>
+            </ul>
+            <div class="auth-btns">
+                <a href="{% url 'login' %}" class="btn-glass">Login</a>
+                <a href="{% url 'register' %}" class="btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero" id="accueil">
+        <div class="container">
+            <div class="hero-content" data-aos="fade-up" data-aos-duration="1000">
+                <h1>L'Intelligence <span>Agentique</span> au service de vos examens</h1>
+                <p>Uploadez, Analysez, Résolvez. Nexus AI combine Vision par Ordinateur et orchestration multi-agents pour une précision académique inégalée.</p>
+                <a href="{% url 'login' %}" class="btn-primary" style="padding: 18px 40px; font-size: 1.1rem;">Découvrir la puissance</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="services" id="services">
+        <div class="container">
+            <h2 style="font-size: 2.5rem; text-align: center; margin-bottom: 60px;" data-aos="fade-up">Nos Services IA</h2>
+            <div class="grid-services">
+                <div class="service-card" data-aos="fade-up" data-aos-delay="100">
+                    <i class="fa-solid fa-eye"></i>
+                    <h3>Vision OCR</h3>
+                    <p>Extraction intelligente de textes manuscrits ou imprimés avec correction contextuelle automatique.</p>
+                </div>
+                <div class="service-card" data-aos="fade-up" data-aos-delay="200">
+                    <i class="fa-solid fa-brain"></i>
+                    <h3>Solving Agents</h3>
+                    <p>Des agents spécialisés qui décomposent vos problèmes complexes étape par étape.</p>
+                </div>
+                <div class="service-card" data-aos="fade-up" data-aos-delay="300">
+                    <i class="fa-solid fa-lock"></i>
+                    <h3>Confidentialité Locale</h3>
+                    <p>Toutes vos analyses sont traitées via des modèles locaux (Llama 3) pour une sécurité absolue.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="subscriptions">
+        <div class="container">
+            <h2 style="font-size: 2.5rem; text-align: center;" data-aos="fade-up">Plans & Subscriptions</h2>
+            <div class="price-grid">
+                <div class="price-card" data-aos="zoom-in">
+                    <h3>Explorer</h3>
+                    <div class="cost">0€ <span>/mois</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> 5 Analyses par jour</li>
+                        <li><i class="fa-solid fa-check"></i> Modèle Standard Llama 3</li>
+                        <li><i class="fa-solid fa-check"></i> Support Communauté</li>
+                    </ul>
+                    <a href="{% url 'register' %}" class="btn-glass" style="display: block;">Démarrer</a>
+                </div>
+                <div class="price-card pro" data-aos="zoom-in" data-aos-delay="200">
+                    <div style="position: absolute; top: 15px; right: 20px; color: var(--primary); font-size: 0.8rem; font-weight: bold;">POPULAIRE</div>
+                    <h3>Pro Expert</h3>
+                    <div class="cost">19€ <span>/mois</span></div>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> Analyses Illimitées</li>
+                        <li><i class="fa-solid fa-check"></i> Modèles Premium (O1, GPT4o)</li>
+                        <li><i class="fa-solid fa-check"></i> Export PDF & LaTeX</li>
+                    </ul>
+                    <a href="{% url 'register' %}" class="btn-primary" style="display: block;">Choisir Pro</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="vision" id="apropos" style="padding: 120px 0;">
+        <div class="container" style="text-align: center; max-width: 800px;">
+            <h2 style="margin-bottom: 30px;" data-aos="fade-up">Notre Vision</h2>
+            <p style="color: var(--gray); font-size: 1.2rem; line-height: 1.8;" data-aos="fade-up">Nexus AI est née au sein du Master Vision par Ordinateur. Notre mission est de transformer la façon dont les étudiants et chercheurs interagissent avec les documents complexes en utilisant des systèmes multi-agents capables de raisonner en profondeur.</p>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-logo">NEXUS AI</div>
+            <p style="color: var(--gray);">&copy; 2026 Projet Master 2 IA & Vision. Tous droits réservés.</p>
+        </div>
+    </footer>
+
+    <script>
+        // AOS Animation Init
+        AOS.init();
+
+        // THREE.JS 3D BACKGROUND (Particles Effect)
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 5000; i++) {
+            vertices.push(THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000));
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x10a37f, size: 2 }));
+        scene.add(particles);
+
+        camera.position.z = 1000;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.x += 0.0005;
+            particles.rotation.y += 0.0005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
