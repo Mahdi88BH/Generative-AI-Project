@@ -2,38 +2,46 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 import shutil
 import os
-from .ocr_engine import extract_text_from_exam
-from .agent import exam_agent
+import uvicorn
 
-app = FastAPI(title="AI Exam Solver Engine")
+# Imports de tes fichiers locaux
+from ocr_engine import extract_text_from_exam
+from agent import exam_agent
+
+app = FastAPI(title="Engine AI Exam Solver")
 
 @app.post("/api/v1/solve")
 async def solve_exam(file: UploadFile = File(...)):
-    # 1. Sauvegarde temporaire du fichier reçu de Django
-    temp_filename = f"temp_{file.filename}"
-    with open(temp_filename, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
+    # 1. Sauvegarde temporaire du fichier entrant
+    temp_path = f"temp_{file.filename}"
     try:
-        # 2. Pipeline Vision (OCR)
-        raw_text = extract_text_from_exam(temp_filename)
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
         
-        # 3. Pipeline Agentic (LangGraph)
+        # 2. Exécution de l'OCR (Vision)
+        raw_text = extract_text_from_exam(temp_path)
+        
+        if not raw_text or len(raw_text.strip()) < 5:
+            return {"status": "error", "message": "Texte insuffisant détecté sur l'image."}
+
+        # 3. Exécution du Graphe d'Agents (Reasoning)
+        # On appelle le graphe LangGraph compilé dans agent.py
         inputs = {"raw_text": raw_text}
         result = exam_agent.invoke(inputs)
         
         return {
             "status": "success",
-            "ocr_text": raw_text,
-            "solution": result["solution"]
+            "ocr_extracted": raw_text,
+            "solution": result.get("solution", "Erreur de génération de solution")
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
     finally:
-        # Nettoyage du fichier temporaire
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
+        # Nettoyage systématique du fichier temporaire
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8001)
