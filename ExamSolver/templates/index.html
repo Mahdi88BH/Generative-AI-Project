@@ -4,9 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus AI | L'Avenir de l'Analyse Agentique</title>
     
-    <meta name="description" content="Plateforme révolutionnaire de résolution d'examens par IA multi-agents.">
+    <title>Nexus AI | Solveur d'Examens Intelligent & Vision par Ordinateur</title>
+    <meta name="description" content="Nexus AI révolutionne l'apprentissage avec une IA agentique. Résolution d'examens par vision par ordinateur, extraction OCR intelligente et orchestration multi-agents locale.">
+    <meta name="keywords" content="Intelligence Artificielle, OCR, Vision par ordinateur, Llama 3, Solveur examen, Agentic AI, LangGraph, Deep Learning">
+    <meta name="author" content="Projet Master 2 IA">
+    
+    <meta property="og:title" content="Nexus AI | L'Avenir de l'Analyse Agentique">
+    <meta property="og:description" content="Découvrez la puissance de l'IA locale pour la résolution de documents complexes.">
+    <meta property="og:type" content="website">
+
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -17,7 +24,7 @@
     <style>
         :root {
             --primary: #10a37f;
-            --primary-glow: rgba(16, 163, 127, 0.3);
+            --primary-glow: rgba(16, 163, 127, 0.4);
             --dark: #0a0b0d;
             --dark-soft: #16171a;
             --white: #ffffff;
@@ -27,15 +34,16 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
+        html { scroll-behavior: smooth; overflow-x: hidden; }
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: var(--dark); 
             color: var(--white); 
-            overflow-x: hidden; 
+            overflow-x: hidden;
+            line-height: 1.6;
         }
 
-        /* --- 3D BACKGROUND CANVAS --- */
+        /* --- 3D BACKGROUND --- */
         #canvas-container {
             position: fixed;
             top: 0; left: 0;
@@ -46,197 +54,321 @@
 
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
-        /* --- NAVIGATION --- */
+        /* --- NAVIGATION RESPONSIVE --- */
         nav {
-            height: 90px;
+            height: 80px;
             display: flex;
             align-items: center;
             position: fixed;
             top: 0; width: 100%;
             z-index: 1000;
-            backdrop-filter: blur(15px);
+            backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--glass-border);
+            transition: 0.3s;
         }
-        .nav-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .logo { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--primary); }
-        
-        .nav-links { display: flex; gap: 35px; list-style: none; }
-        .nav-links a { color: var(--gray); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; }
-        .nav-links a:hover { color: var(--white); text-shadow: 0 0 10px var(--primary-glow); }
 
-        .auth-btns { display: flex; gap: 20px; align-items: center; }
-        .btn-glass { padding: 10px 25px; border-radius: 50px; border: 1px solid var(--glass-border); color: white; text-decoration: none; transition: 0.3s; }
-        .btn-glass:hover { background: var(--glass); }
-        .btn-primary { padding: 10px 25px; border-radius: 50px; background: var(--primary); color: white; text-decoration: none; font-weight: 600; box-shadow: 0 0 20px var(--primary-glow); }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .logo { font-size: 1.6rem; font-weight: 800; display: flex; align-items: center; gap: 12px; color: var(--primary); text-decoration: none; }
+        
+        .nav-menu { display: flex; align-items: center; gap: 40px; }
+        .nav-links { display: flex; gap: 30px; list-style: none; }
+        .nav-links a { color: var(--gray); text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.3s; position: relative; }
+        .nav-links a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background: var(--primary); transition: 0.3s; }
+        .nav-links a:hover { color: var(--white); }
+        .nav-links a:hover::after { width: 100%; }
+
+        /* BURGER MENU */
+        .burger { display: none; cursor: pointer; flex-direction: column; gap: 6px; }
+        .burger span { width: 28px; height: 3px; background: var(--white); border-radius: 2px; transition: 0.3s; }
+
+        .auth-btns { display: flex; gap: 15px; align-items: center; }
+        .btn-glass { padding: 10px 22px; border-radius: 12px; border: 1px solid var(--glass-border); color: white; text-decoration: none; font-size: 0.9rem; transition: 0.3s; }
+        .btn-glass:hover { background: var(--glass); border-color: var(--white); }
+        .btn-primary { padding: 11px 24px; border-radius: 12px; background: var(--primary); color: white; text-decoration: none; font-weight: 600; font-size: 0.9rem; box-shadow: 0 4px 15px var(--primary-glow); transition: 0.3s; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--primary-glow); }
 
         /* --- HERO SECTION --- */
-        .hero { height: 100vh; display: flex; align-items: center; position: relative; }
-        .hero-content { max-width: 700px; }
-        .hero h1 { font-size: 4.5rem; line-height: 1; font-weight: 800; margin-bottom: 30px; letter-spacing: -2px; }
+        .hero { min-height: 100vh; display: flex; align-items: center; padding-top: 80px; }
+        .hero-content { max-width: 800px; }
+        .hero h1 { font-size: clamp(2.5rem, 8vw, 5rem); line-height: 1.1; font-weight: 800; margin-bottom: 25px; letter-spacing: -2px; }
         .hero h1 span { 
-            background: linear-gradient(90deg, #10a37f, #5436da);
+            background: linear-gradient(90deg, #10a37f, #5436da, #10a37f);
+            background-size: 200% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            animation: gradient-move 3s linear infinite;
         }
-        .hero p { font-size: 1.25rem; color: var(--gray); margin-bottom: 40px; line-height: 1.6; }
+        @keyframes gradient-move { to { background-position: 200% center; } }
+        
+        .typewriter { color: var(--primary); border-right: 3px solid var(--primary); padding-right: 5px; animation: blink 0.7s infinite; }
+        @keyframes blink { 50% { border-color: transparent; } }
 
-        /* --- SERVICES (Cards) --- */
-        .services { padding: 120px 0; }
-        .grid-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .hero p { font-size: clamp(1rem, 3vw, 1.25rem); color: var(--gray); margin-bottom: 40px; max-width: 600px; }
+
+        /* --- SERVICES SECTION --- */
+        .services { padding: 100px 0; }
+        .section-tag { color: var(--primary); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; font-size: 0.8rem; display: block; text-align: center; margin-bottom: 10px; }
+        .section-title { font-size: clamp(2rem, 5vw, 3rem); text-align: center; margin-bottom: 60px; font-weight: 800; }
+        
+        .grid-services { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; }
         .service-card { 
             background: var(--glass); 
             border: 1px solid var(--glass-border); 
-            padding: 40px; 
-            border-radius: 24px; 
-            transition: 0.4s;
+            padding: 50px 40px; 
+            border-radius: 30px; 
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
         }
-        .service-card:hover { border-color: var(--primary); transform: translateY(-10px); background: rgba(16, 163, 127, 0.05); }
-        .service-card i { font-size: 2.5rem; color: var(--primary); margin-bottom: 25px; }
+        .service-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(45deg, transparent, rgba(16, 163, 127, 0.1)); opacity: 0; transition: 0.3s; }
+        .service-card:hover { border-color: var(--primary); transform: translateY(-15px); }
+        .service-card:hover::before { opacity: 1; }
+        .service-card i { font-size: 3rem; color: var(--primary); margin-bottom: 25px; display: block; }
+        .service-card h3 { font-size: 1.5rem; margin-bottom: 15px; }
+        .service-card p { color: var(--gray); font-size: 0.95rem; }
 
         /* --- PRICING --- */
-        .pricing { padding: 120px 0; background: var(--dark-soft); border-radius: 50px 50px 0 0; }
-        .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; margin-top: 60px; }
+        .pricing { padding: 100px 0; background: var(--dark-soft); border-radius: 80px 80px 0 0; }
+        .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; margin-top: 60px; }
         .price-card { 
-            padding: 50px; border-radius: 30px; border: 1px solid var(--glass-border); 
-            text-align: center; position: relative; overflow: hidden;
+            padding: 60px 40px; border-radius: 40px; border: 1px solid var(--glass-border); 
+            text-align: center; position: relative; transition: 0.4s;
         }
-        .price-card.pro { border-color: var(--primary); background: rgba(16, 163, 127, 0.02); }
-        .price-card h3 { font-size: 1.8rem; margin-bottom: 15px; }
-        .price-card .cost { font-size: 3.5rem; font-weight: 800; margin-bottom: 30px; }
-        .price-card .cost span { font-size: 1rem; color: var(--gray); }
-        .price-card ul { list-style: none; text-align: left; margin-bottom: 40px; color: var(--gray); }
-        .price-card li { margin-bottom: 15px; display: flex; gap: 10px; }
-        .price-card li i { color: var(--primary); }
+        .price-card.pro { border-color: var(--primary); background: rgba(16, 163, 127, 0.03); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+        .price-card:hover { border-color: var(--white); }
+        .price-card h3 { font-size: 1.8rem; margin-bottom: 20px; }
+        .price-card .cost { font-size: 4rem; font-weight: 800; margin-bottom: 30px; }
+        .price-card .cost span { font-size: 1.1rem; color: var(--gray); font-weight: 400; }
+        .price-card ul { list-style: none; text-align: left; margin-bottom: 45px; }
+        .price-card li { margin-bottom: 18px; display: flex; align-items: center; gap: 12px; color: var(--gray); font-size: 0.95rem; }
+        .price-card li i { color: var(--primary); font-size: 1.1rem; }
 
         /* --- FOOTER --- */
-        footer { padding: 80px 0 40px; border-top: 1px solid var(--glass-border); text-align: center; }
-        .footer-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 20px; color: var(--primary); }
+        footer { padding: 100px 0 50px; border-top: 1px solid var(--glass-border); }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 50px; margin-bottom: 60px; }
+        .footer-logo { font-size: 1.8rem; font-weight: 800; color: var(--primary); text-decoration: none; margin-bottom: 20px; display: block; }
+        .footer-text { color: var(--gray); max-width: 300px; }
+        .footer-title { font-weight: 700; margin-bottom: 25px; font-size: 1.1rem; }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 15px; }
+        .footer-links a { color: var(--gray); text-decoration: none; transition: 0.3s; }
+        .footer-links a:hover { color: var(--primary); padding-left: 5px; }
+        .copyright { text-align: center; color: var(--gray); font-size: 0.9rem; padding-top: 40px; border-top: 1px solid var(--glass-border); }
+
+        /* --- MOBILE RESPONSIVE --- */
+        @media (max-width: 992px) {
+            .nav-menu { 
+                position: fixed; top: 80px; left: -100%; width: 100%; height: calc(100vh - 80px); 
+                background: var(--dark); flex-direction: column; padding: 50px 24px; transition: 0.5s; 
+                backdrop-filter: blur(20px);
+            }
+            .nav-menu.active { left: 0; }
+            .nav-links { flex-direction: column; gap: 30px; align-items: center; width: 100%; }
+            .nav-links a { font-size: 1.5rem; }
+            .burger { display: flex; }
+            .hero h1 { text-align: center; }
+            .hero p { text-align: center; margin: 0 auto 40px; }
+            .hero .hero-content { text-align: center; margin: 0 auto; }
+            .footer-grid { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+            .footer-text { margin: 0 auto; }
+        }
+
+        /* ANIMATION FOR CONTENT */
+        [data-aos] { pointer-events: none; }
+        .aos-animate { pointer-events: auto; }
     </style>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
-    <nav>
+    <nav id="navbar">
         <div class="container nav-content">
-            <div class="logo">
+            <a href="#" class="logo">
                 <i class="fa-solid fa-atom"></i> NEXUS AI
+            </a>
+            
+            <div class="nav-menu" id="nav-menu">
+                <ul class="nav-links">
+                    <li><a href="#accueil">Accueil</a></li>
+                    <li><a href="#services">Services</a></li>
+                    <li><a href="#subscriptions">Plans</a></li>
+                    <li><a href="#apropos">Vision</a></li>
+                </ul>
+                <div class="auth-btns">
+                    <a href="{% url 'login' %}" class="btn-glass">Connexion</a>
+                    <a href="{% url 'register' %}" class="btn-primary">Essai Gratuit</a>
+                </div>
             </div>
-            <ul class="nav-links">
-                <li><a href="#accueil">Accueil</a></li>
-                <li><a href="#services">Services</a></li>
-                <li><a href="#subscriptions">Subscriptions</a></li>
-                <li><a href="#apropos">À Propos</a></li>
-            </ul>
-            <div class="auth-btns">
-                <a href="{% url 'login' %}" class="btn-glass">Login</a>
-                <a href="{% url 'register' %}" class="btn-primary">Get Started</a>
+
+            <div class="burger" id="burger">
+                <span></span>
+                <span></span>
+                <span></span>
             </div>
         </div>
     </nav>
 
     <section class="hero" id="accueil">
         <div class="container">
-            <div class="hero-content" data-aos="fade-up" data-aos-duration="1000">
-                <h1>L'Intelligence <span>Agentique</span> au service de vos examens</h1>
-                <p>Uploadez, Analysez, Résolvez. Nexus AI combine Vision par Ordinateur et orchestration multi-agents pour une précision académique inégalée.</p>
-                <a href="{% url 'login' %}" class="btn-primary" style="padding: 18px 40px; font-size: 1.1rem;">Découvrir la puissance</a>
+            <div class="hero-content">
+                <h1 data-aos="fade-right" data-aos-duration="1200">
+                    Propulsez vos études avec <span>l'IA Agentique</span>
+                </h1>
+                <p data-aos="fade-up" data-aos-delay="200">
+                    Nexus AI utilise l'orchestration multi-agents pour résoudre vos documents complexes. 
+                    <span id="typewriter" class="typewriter"></span>
+                </p>
+                <div data-aos="fade-up" data-aos-delay="400">
+                    <a href="{% url 'login' %}" class="btn-primary" style="padding: 18px 45px; font-size: 1.1rem;">Lancer l'analyse locale</a>
+                </div>
             </div>
         </div>
     </section>
 
     <section class="services" id="services">
         <div class="container">
-            <h2 style="font-size: 2.5rem; text-align: center; margin-bottom: 60px;" data-aos="fade-up">Nos Services IA</h2>
+            <span class="section-tag" data-aos="fade-up">Innovation</span>
+            <h2 class="section-title" data-aos="fade-up" data-aos-delay="100">Écosystème Intelligent</h2>
+            
             <div class="grid-services">
-                <div class="service-card" data-aos="fade-up" data-aos-delay="100">
-                    <i class="fa-solid fa-eye"></i>
-                    <h3>Vision OCR</h3>
-                    <p>Extraction intelligente de textes manuscrits ou imprimés avec correction contextuelle automatique.</p>
-                </div>
                 <div class="service-card" data-aos="fade-up" data-aos-delay="200">
-                    <i class="fa-solid fa-brain"></i>
-                    <h3>Solving Agents</h3>
-                    <p>Des agents spécialisés qui décomposent vos problèmes complexes étape par étape.</p>
+                    <i class="fa-solid fa-eye"></i>
+                    <h3>Vision OCR Avancée</h3>
+                    <p>Technologie de pointe pour extraire le texte manuscrit et les formules mathématiques complexes avec une précision de 99%.</p>
                 </div>
                 <div class="service-card" data-aos="fade-up" data-aos-delay="300">
-                    <i class="fa-solid fa-lock"></i>
-                    <h3>Confidentialité Locale</h3>
-                    <p>Toutes vos analyses sont traitées via des modèles locaux (Llama 3) pour une sécurité absolue.</p>
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <h3>Multi-Agent Orchestration</h3>
+                    <p>Nos agents collaborent via LangGraph pour décomposer, vérifier et valider chaque solution académique produite.</p>
                 </div>
+                <div class="service-card" data-aos="fade-up" data-aos-delay="400">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <h3>Souveraineté des Données</h3>
+                    <p>Inférence locale totale avec Llama 3. Vos documents ne quittent jamais votre environnement sécurisé.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="vision" style="padding: 60px 0; border-top: 1px solid var(--glass-border);">
+        <div class="container">
+            <div style="background: var(--glass); padding: 40px; border-radius: 20px; font-size: 0.9rem; color: var(--gray); text-align: justify;">
+                <h4 style="color: var(--white); margin-bottom: 15px;">Pourquoi choisir Nexus AI pour la résolution d'examens par IA ?</h4>
+                <p>À l'ère de l'intelligence artificielle générative, Nexus AI se distingue par son approche <strong>Agentic AI</strong>. Contrairement aux chatbots classiques, notre système utilise la <strong>vision par ordinateur</strong> (Computer Vision) pour interpréter les structures visuelles de vos examens. En intégrant des modèles comme <strong>Llama 3</strong> et des frameworks comme <strong>LangGraph</strong>, nous offrons une résolution structurée qui comprend le contexte académique profond, idéale pour les étudiants en Master et ingénierie.</p>
             </div>
         </div>
     </section>
 
     <section class="pricing" id="subscriptions">
         <div class="container">
-            <h2 style="font-size: 2.5rem; text-align: center;" data-aos="fade-up">Plans & Subscriptions</h2>
+            <span class="section-tag" data-aos="fade-up">Accès</span>
+            <h2 class="section-title" data-aos="fade-up">Nos Abonnements</h2>
+            
             <div class="price-grid">
-                <div class="price-card" data-aos="zoom-in">
+                <div class="price-card" data-aos="fade-right">
                     <h3>Explorer</h3>
                     <div class="cost">0€ <span>/mois</span></div>
                     <ul>
-                        <li><i class="fa-solid fa-check"></i> 5 Analyses par jour</li>
-                        <li><i class="fa-solid fa-check"></i> Modèle Standard Llama 3</li>
-                        <li><i class="fa-solid fa-check"></i> Support Communauté</li>
+                        <li><i class="fa-solid fa-circle-check"></i> 5 Analyses intelligentes / jour</li>
+                        <li><i class="fa-solid fa-circle-check"></i> Accès modèle Llama 3</li>
+                        <li><i class="fa-solid fa-circle-check"></i> OCR Standard</li>
                     </ul>
-                    <a href="{% url 'register' %}" class="btn-glass" style="display: block;">Démarrer</a>
+                    <a href="{% url 'register' %}" class="btn-glass" style="display: block;">Commencer</a>
                 </div>
-                <div class="price-card pro" data-aos="zoom-in" data-aos-delay="200">
-                    <div style="position: absolute; top: 15px; right: 20px; color: var(--primary); font-size: 0.8rem; font-weight: bold;">POPULAIRE</div>
+                
+                <div class="price-card pro" data-aos="fade-left">
+                    <div style="position: absolute; top: 20px; right: 30px; color: var(--primary); font-size: 0.7rem; font-weight: 800; border: 1px solid var(--primary); padding: 4px 10px; border-radius: 20px;">RECOMMANDÉ</div>
                     <h3>Pro Expert</h3>
                     <div class="cost">19€ <span>/mois</span></div>
                     <ul>
-                        <li><i class="fa-solid fa-check"></i> Analyses Illimitées</li>
-                        <li><i class="fa-solid fa-check"></i> Modèles Premium (O1, GPT4o)</li>
-                        <li><i class="fa-solid fa-check"></i> Export PDF & LaTeX</li>
+                        <li><i class="fa-solid fa-circle-check"></i> Analyses Illimitées</li>
+                        <li><i class="fa-solid fa-circle-check"></i> Agents Multi-étapes Premium</li>
+                        <li><i class="fa-solid fa-circle-check"></i> Export LaTeX & Wolfram integration</li>
+                        <li><i class="fa-solid fa-circle-check"></i> Support prioritaire 24/7</li>
                     </ul>
-                    <a href="{% url 'register' %}" class="btn-primary" style="display: block;">Choisir Pro</a>
+                    <a href="{% url 'register' %}" class="btn-primary" style="display: block;">Activer la puissance</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="vision" id="apropos" style="padding: 120px 0;">
-        <div class="container" style="text-align: center; max-width: 800px;">
-            <h2 style="margin-bottom: 30px;" data-aos="fade-up">Notre Vision</h2>
-            <p style="color: var(--gray); font-size: 1.2rem; line-height: 1.8;" data-aos="fade-up">Nexus AI est née au sein du Master Vision par Ordinateur. Notre mission est de transformer la façon dont les étudiants et chercheurs interagissent avec les documents complexes en utilisant des systèmes multi-agents capables de raisonner en profondeur.</p>
-        </div>
-    </section>
-
     <footer>
         <div class="container">
-            <div class="footer-logo">NEXUS AI</div>
-            <p style="color: var(--gray);">&copy; 2026 Projet Master 2 IA & Vision. Tous droits réservés.</p>
+            <div class="footer-grid">
+                <div>
+                    <a href="#" class="footer-logo"><i class="fa-solid fa-atom"></i> NEXUS AI</a>
+                    <p class="footer-text">L'excellence académique augmentée par l'intelligence artificielle souveraine.</p>
+                </div>
+                <div>
+                    <h4 class="footer-title">Navigation</h4>
+                    <ul class="footer-links">
+                        <li><a href="#accueil">Accueil</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#subscriptions">Prix</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="footer-title">Légal</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Confidentialité</a></li>
+                        <li><a href="#">Conditions</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2026 Projet Master 2 - Architecture Agentique & Vision. Conçu pour le futur.</p>
+            </div>
         </div>
     </footer>
 
     <script>
-        // AOS Animation Init
-        AOS.init();
+        // AOS
+        AOS.init({ once: true });
 
-        // THREE.JS 3D BACKGROUND (Particles Effect)
+        // MOBILE MENU
+        const burger = document.getElementById('burger');
+        const navMenu = document.getElementById('nav-menu');
+
+        burger.addEventListener('click', () => {
+            navMenu.classList.toggle('active');
+            burger.classList.toggle('toggle');
+        });
+
+        // TYPEWRITER EFFECT
+        const text = "Résolvez, Apprenez, Réussissez.";
+        let i = 0;
+        function typeWriter() {
+            if (i < text.length) {
+                document.getElementById("typewriter").innerHTML += text.charAt(i);
+                i++;
+                setTimeout(typeWriter, 100);
+            }
+        }
+        typeWriter();
+
+        // THREE.JS PARTICLES
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
-        for (let i = 0; i < 5000; i++) {
-            vertices.push(THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000), THREE.MathUtils.randFloatSpread(2000));
+        for (let i = 0; i < 6000; i++) {
+            vertices.push(THREE.MathUtils.randFloatSpread(2500), THREE.MathUtils.randFloatSpread(2500), THREE.MathUtils.randFloatSpread(2500));
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x10a37f, size: 2 }));
+        const particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x10a37f, size: 2.5, transparent: true, opacity: 0.6 }));
         scene.add(particles);
 
         camera.position.z = 1000;
 
         function animate() {
             requestAnimationFrame(animate);
-            particles.rotation.x += 0.0005;
-            particles.rotation.y += 0.0005;
+            particles.rotation.x += 0.0003;
+            particles.rotation.y += 0.0003;
             renderer.render(scene, camera);
         }
         animate();
@@ -245,6 +377,18 @@
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // NAVBAR SCROLL EFFECT
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.style.height = '70px';
+                nav.style.background = 'rgba(10, 11, 13, 0.9)';
+            } else {
+                nav.style.height = '80px';
+                nav.style.background = 'transparent';
+            }
         });
     </script>
 </body>
