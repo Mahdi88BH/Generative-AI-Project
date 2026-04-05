@@ -12,7 +12,7 @@ media/
 static_root/
 staticfiles/
 
-# --- Sécurité (TRÈS IMPORTANT) ---
+# --- Sécurité ---
 .env
 
 # --- Systèmes d'exploitation ---
@@ -20,11 +20,18 @@ staticfiles/
 Thumbs.db
 desktop.ini
 
-# --- IDE (VS Code / PyCharm) ---
+# --- IDE ---
 .vscode/
 .idea/
 
-# --- Intelligence Artificielle ---
+# --- Intelligence Artificielle & Data ---
 *.gguf
 *.bin
 models/
+ai_engine/temp_exams/*
+!ai_engine/temp_exams/.gitkeep
+
+# --- Logs & Divers ---
+*.log
+.coverage
+htmlcov/
