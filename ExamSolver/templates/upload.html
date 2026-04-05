@@ -159,7 +159,7 @@
                 </div>
             </form>
             <p style="text-align:center; font-size:11px; color:#565869; margin-top:12px;">
-                Agent local : Llama 3 / Phi-3 via Ollama.
+                Propulsé par <strong>Llama 3</strong> via API locale.
             </p>
         </div>
     </main>
@@ -174,7 +174,7 @@
     const sendBtn = document.getElementById('sendBtn');
     const uploadForm = document.getElementById('uploadForm');
 
-    // Étape 1 : Prévisualisation immédiate
+    // Prévisualisation de l'image sélectionnée
     function handleFileSelect(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -184,21 +184,19 @@
                 previewMessage.style.display = 'flex';
                 placeholder.innerText = input.files[0].name;
                 placeholder.style.color = "#ececf1";
-                sendBtn.style.display = "block"; // On montre l'avion
+                sendBtn.style.display = "block";
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             }
             reader.readAsDataURL(input.files[0]);
         }
     }
 
-    // Étape 2 : Lancement de l'analyse (Simule ChatGPT)
+    // Envoi du formulaire et affichage de l'état "IA en cours"
     function submitExam() {
-        // Changement UI dans la barre
         sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
         sendBtn.disabled = true;
         placeholder.innerHTML = 'Intelligence Artificielle en cours de réflexion...';
         
-        // Ajout immédiat de la bulle de pensée dans le chat
         const loadingDiv = document.createElement('div');
         loadingDiv.className = 'message-row ai-row';
         loadingDiv.innerHTML = `
@@ -215,7 +213,6 @@
         chatContainer.appendChild(loadingDiv);
         chatContainer.scrollTop = chatContainer.scrollHeight;
 
-        // On laisse une demi-seconde pour l'effet visuel puis on submit
         setTimeout(() => {
             uploadForm.submit();
         }, 500);
