@@ -1,0 +1,48 @@
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Django
+db.sqlite3
+media/
+static_root/
+staticfiles/
+
+# Security
+.env
+ai_engine/.env
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# AI / Data
+*.gguf
+*.bin
+models/
+ai_engine/temp_exams/*
+!ai_engine/temp_exams/.gitkeep
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+.coverage
+htmlcov/
+media/*
+!media/.gitkeep
