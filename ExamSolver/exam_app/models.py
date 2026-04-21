@@ -9,6 +9,7 @@ class Exam(models.Model):
     result_text = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, default='Pending') 
     mode = models.CharField(max_length=20, default="solve")
+    user_prompt = models.TextField(blank=True, null=True)
 
     def __str__(self):
         # Utilisation de self.user.username pour un affichage clair dans l'admin
