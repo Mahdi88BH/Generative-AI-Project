@@ -54,7 +54,7 @@
 
         /* --- MARKDOWN STYLING --- */
         .text { line-height: 1.8; font-size: 1rem; color: #e1e1e6; width: 100%; }
-        .markdown-content h3 { color: var(--primary); margin: 1.5rem 0 1rem 0; font-weight: 800; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 { color: var(--primary); margin: 1.5rem 0 1rem 0; font-weight: 800; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; }
         .markdown-content h4 { color: #fff; margin: 1.2rem 0 0.6rem 0; font-weight: 600; }
         .markdown-content strong { color: var(--primary); }
 
@@ -124,8 +124,10 @@
                         <div class="message-content">
                             <div class="avatar" style="background: linear-gradient(135deg, #5436da, #8e2de2); color: white;">{{ user.username|slice:":1"|upper }}</div>
                             <div class="text">
-                                <p style="opacity: 0.6; font-size: 0.8rem; margin-bottom: 10px;">{{ exam.mode|capfirst }} transmise...</p>
+                                <p style="opacity: 0.6; font-size: 0.8rem; margin-bottom: 10px;">Requête traitée en mode {{ exam.mode }}</p>
+                                {% if exam.image %}
                                 <img src="{{ exam.image.url }}" style="max-width: 350px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -162,14 +164,14 @@
                     {% csrf_token %}
                     <div class="input-container">
                         <div class="main-input-row">
-                            <label for="exam_image" class="icon-btn" title="Uploader l'épreuve">
+                            <label for="exam_image" class="icon-btn" title="Uploader l'épreuve (Multi-images supporté)">
                                 <i class="fa-solid fa-camera-retro fa-lg"></i>
                             </label>
-                            <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleMainFile(this)" style="display:none;">
+                            <input type="file" name="exam_image" id="exam_image" accept="image/*" multiple onchange="handleMainFile(this)" style="display:none;">
                             
                             <div id="status-text" style="flex-grow: 1; font-size: 0.9rem; color: #8e8ea0; font-weight: 600;">Injection épreuve...</div>
 
-                            <div class="icon-btn" onclick="toggleProfMode()" title="Mode Professeur (Multi-images)">
+                            <div class="icon-btn" onclick="toggleProfMode()" title="Mode Professeur (Ajouter la copie)">
                                 <i class="fa-solid fa-graduation-cap"></i>
                             </div>
                             
@@ -187,12 +189,12 @@
                         </div>
                     </div>
                 </form>
-                <p style="text-align: center; font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">Llama 3.3 Agentic Engine v3.0</p>
             </div>
         </main>
     </div>
 
     <script>
+        // Arrière-plan 3D
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -208,13 +210,15 @@
         function animate() { requestAnimationFrame(animate); particles.rotation.x += 0.0003; particles.rotation.y += 0.0003; renderer.render(scene, camera); }
         animate();
 
+        // Interface Upload
         function handleMainFile(input) {
-            if (input.files && input.files[0]) {
+            if (input.files && input.files.length > 0) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     document.getElementById('imagePreview').src = e.target.result;
                     document.getElementById('previewMessage').style.display = 'flex';
-                    document.getElementById('fileNameDisplay').innerText = "ÉNONCÉ : " + input.files[0].name;
+                    let countText = input.files.length > 1 ? ` (${input.files.length} fichiers)` : '';
+                    document.getElementById('fileNameDisplay').innerText = "ÉNONCÉ" + countText;
                     document.getElementById('status-text').innerText = "PRÊT POUR ANALYSE";
                     document.getElementById('sendBtn').style.display = "block";
                     const scroller = document.getElementById('chatContainer');
@@ -230,11 +234,10 @@
         }
 
         function updatePill() {
-            const pill = document.getElementById('pill-copie');
             const countDisplay = document.getElementById('pill-count');
             const input = document.getElementById('copie_file');
             if (input.files.length > 0) {
-                pill.classList.add('active');
+                document.getElementById('pill-copie').classList.add('active');
                 countDisplay.innerText = input.files.length + " IMAGE(S) JOINTE(S)";
             }
         }
