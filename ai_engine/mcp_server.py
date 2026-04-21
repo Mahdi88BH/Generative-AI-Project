@@ -2,9 +2,8 @@ import os
 import cv2
 import pytesseract
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from mcp.server import Server
-# Changement ici : On utilise le transport SSE pour la communication HTTP
 from mcp.server.sse import SseServerTransport
 
 # CONFIGURATION TESSERACT
@@ -28,36 +27,35 @@ async def handle_call_tool(name: str, arguments: dict):
     try:
         img = cv2.imread(image_path)
         if img is None:
-            return "Erreur : Image corrompue ou format non supporté."
+            return "Erreur : Image corrompue."
 
-        # Prétraitement pour une meilleure lecture
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         processed = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         
-        # Extraction
         text = pytesseract.image_to_string(processed, lang='fra+eng', config='--psm 3')
-        return text.strip() or "Aucun texte détecté sur l'image."
+        return text.strip() or "Aucun texte détecté."
 
     except Exception as e:
-        return f"Erreur OCR interne : {str(e)}"
+        return f"Erreur OCR : {str(e)}"
 
-# 3. Initialisation de FastAPI avec le transport SSE
+# 3. Initialisation FastAPI et Transport SSE
 app = FastAPI()
-sse_transport = SseServerTransport(mcp_server)
 
-# Routes requises par le protocole MCP pour communiquer en HTTP
+# Correction ici : Le transport prend l'URL de base en premier argument
+sse_transport = SseServerTransport("/messages")
+
 @app.get("/sse")
-async def sse_endpoint():
-    async with sse_transport.connect_sse() as (read_stream, write_stream):
-        # Cette route gère la connexion persistante
-        pass
+async def sse_endpoint(request: Request):
+    """Gère la connexion flux (stream) pour MCP."""
+    async with sse_transport.connect_sse(request.scope, request.receive, request._send) as (read, write):
+        await mcp_server.run(read, write, mcp_server.create_initialization_options())
 
 @app.post("/messages")
-async def messages_endpoint():
-    # Cette route gère les commandes envoyées par l'agent
-    pass
+async def messages_endpoint(request: Request):
+    """Gère les messages entrants du protocole."""
+    await sse_transport.handle_post_message(request.scope, request.receive, request._send)
 
-# ROUTE DE COMPATIBILITÉ (Pour ton agent.py actuel via httpx)
+# --- ROUTE DE COMPATIBILITÉ DIRECTE (Pour ton agent.py avec httpx) ---
 @app.post("/tools/vision_ocr_tool")
 async def manual_ocr_call(payload: dict):
     args = payload.get("arguments", {})
