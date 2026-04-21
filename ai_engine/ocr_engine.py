@@ -1,60 +1,41 @@
-import cv2
-import pytesseract
+import httpx
 import os
 
-# Configuration du chemin Tesseract (indispensable après formatage)
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-
-def extract_text_from_exam(image_path):
+def extract_text_from_exam(image_path: str) -> str:
     """
-    Extrait le texte d'une image avec prétraitement OpenCV pour maximiser la précision.
+    Interface unifiée pour extraire le texte d'une image.
+    Cette fonction agit comme un client pour le serveur MCP Vision (Port 8002).
     """
-    # 1. Vérification de l'existence du fichier
-    if not os.path.exists(image_path):
-        print(f"❌ Erreur : Fichier introuvable -> {image_path}")
-        return "Erreur : Image non trouvée sur le serveur."
+    if not image_path or not os.path.exists(image_path):
+        return "Erreur : Chemin d'image invalide ou introuvable."
 
-    # 2. Lecture de l'image
-    img = cv2.imread(image_path)
-    if img is None:
-        print(f"❌ Erreur : Impossible de charger l'image (format invalide ou corrompu).")
-        return "Erreur : Lecture de l'image impossible."
-
-    # 3. Prétraitement pour l'OCR
-    # Conversion en niveaux de gris
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    url_mcp = "http://127.0.0.1:8002/tools/vision_ocr_tool"
     
-    # Réduction du bruit (Flou gaussien léger pour nettoyer les grains de la photo)
-    denoised = cv2.GaussianBlur(gray, (3, 3), 0)
-    
-    # Binarisation d'Otsu (rend le texte noir sur fond blanc pur)
-    processed = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-
-    # 4. Extraction du texte
-    # lang='fra+eng' pour gérer les examens bilingues
-    # --psm 3 : Mode de segmentation automatique (idéal pour les documents structurés)
     try:
-        text = pytesseract.image_to_string(
-            processed, 
-            lang='fra+eng', 
-            config='--psm 3 --oem 3'
-        )
-        
-        # Nettoyage des espaces inutiles
-        final_text = text.strip()
-        
-        if not final_text:
-            return "Avertissement : Aucun texte détecté sur l'image."
+        # Appel au microservice de vision (MCP)
+        with httpx.Client() as client:
+            response = client.post(
+                url_mcp,
+                json={"arguments": {"image_path": os.path.abspath(image_path)}},
+                timeout=45.0
+            )
             
-        return final_text
-
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("content", "Aucun texte renvoyé par le moteur de vision.")
+            else:
+                return f"Erreur MCP (Status {response.status_code}): {response.text}"
+                
     except Exception as e:
-        print(f"❌ Erreur lors de l'exécution de Tesseract : {str(e)}")
-        return f"Erreur OCR : {str(e)}"
+        return f"Échec de connexion au serveur de vision : {str(e)}"
 
-# Bloc de test rapide (optionnel)
+# --- TEST ISOLÉ (Optionnel) ---
 if __name__ == "__main__":
-    test_path = "test_image.png"
-    if os.path.exists(test_path):
-        print("Résultat du test OCR :")
-        print(extract_text_from_exam(test_path))
+    # Permet de tester l'OCR rapidement sans lancer tout le système
+    test_img = "test.jpg"
+    if os.path.exists(test_img):
+        print(f"Test OCR sur {test_img}...")
+        print("-" * 30)
+        print(extract_text_from_exam(test_img))
+    else:
+        print("Placez un fichier 'test.jpg' pour tester cette brique isolément.")
