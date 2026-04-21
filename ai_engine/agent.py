@@ -1,104 +1,132 @@
 import os
 import httpx
-from typing import TypedDict
+from typing import TypedDict, List, Optional
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 
-# Chargement impératif des variables d'environnement (.env)
 load_dotenv()
 
-# --- CONFIGURATION DE L'ÉTAT ---
+# --- 1. CONFIGURATION DE L'ÉTAT (AGENT STATE) ---
 class AgentState(TypedDict):
-    image_path: str   # Reçu de main.py
-    raw_text: str     # Rempli après l'appel MCP
-    cleaned_text: str # Rempli après le passage au LLM (nœud 1)
-    solution: str     # Rempli à la fin (nœud 2)
+    mode: str               # "solve" ou "grade"
+    # Chemins des fichiers
+    image_path: Optional[str]      # Utilisé en mode solve
+    enonce_path: Optional[str]     # Utilisé en mode grade
+    corrige_path: Optional[str]    # Utilisé en mode grade
+    copie_paths: Optional[List[str]] # Liste de chemins (PDF ou images)
+    # Textes extraits
+    raw_text: str           # Texte énoncé (mode solve)
+    enonce_text: str        # Texte énoncé (mode grade)
+    corrige_text: str       # Texte corrigé type
+    copie_text: str         # Texte complet de la copie étudiant
+    # Résultats finaux
+    solution: str           # Résultat mode solve
+    rapport_correction: str # Résultat mode grade
 
-# --- INITIALISATION LLM (GROQ) ---
-# llama-3.3-70b est idéal pour la correction d'OCR complexe
+# --- 2. INITIALISATION LLM ---
 llm = ChatGroq(
     model_name="llama-3.3-70b-versatile", 
     temperature=0.1,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# --- FONCTION AUXILIAIRE : APPEL AU SERVEUR MCP ---
-def call_ocr_mcp_server(path: str) -> str:
-    """Communique avec le serveur MCP tournant sur le port 8002"""
+# --- 3. UTILITAIRE OCR via MCP ---
+def call_ocr(path: str) -> str:
+    if not path or not os.path.exists(path):
+        return ""
     try:
         with httpx.Client() as client:
             response = client.post(
                 "http://127.0.0.1:8002/tools/vision_ocr_tool", 
                 json={"arguments": {"image_path": path}},
-                timeout=30.0
+                timeout=60.0
             )
-            # Récupération sécurisée du contenu renvoyé par le serveur MCP
-            data = response.json()
-            return data.get("content", "Erreur : Contenu MCP vide.")
+            return response.json().get("content", "")
     except Exception as e:
-        print(f"⚠️ Erreur de connexion MCP: {e}")
-        return f"Erreur de communication avec le serveur OCR : {str(e)}"
+        return f"[Erreur OCR]: {str(e)}"
 
-# --- NŒUD 1 : CLEANER (OCR + REFORMULATION) ---
-def clean_text_node(state: AgentState):
-    print("--- [AGENT] Début du nœud CLEANER ---")
-    
-    # SÉCURITÉ : On récupère image_path avec .get() pour éviter le crash 'KeyError'
-    img_path = state.get("image_path")
-    
-    if not img_path:
-        print("❌ Erreur : 'image_path' est manquant dans l'état.")
-        return {"raw_text": "Erreur : Pas de chemin d'image.", "cleaned_text": "Erreur"}
+# --- 4. NŒUDS DU GRAPH ---
 
-    # 1. Appel du serveur MCP pour obtenir le texte brut
-    print(f"--- [AGENT] Appel MCP pour : {img_path} ---")
-    extracted_text = call_ocr_mcp_server(img_path)
+def extraction_node(state: AgentState):
+    """Nœud de vision : Extrait le texte de tous les documents fournis."""
+    print(f"--- [AGENT] Extraction OCR (Mode: {state['mode']}) ---")
     
-    # 2. Nettoyage du texte par le LLM
+    if state["mode"] == "solve":
+        text = call_ocr(state["image_path"])
+        return {"raw_text": text}
+    else:
+        # Mode Grade : On extrait l'énoncé, le corrigé et TOUTES les pages de la copie
+        e_text = call_ocr(state["enonce_path"])
+        c_text = call_ocr(state["corrige_path"])
+        
+        full_copie_text = ""
+        for i, path in enumerate(state["copie_paths"]):
+            page_text = call_ocr(path)
+            full_copie_text += f"\n--- PAGE {i+1} ---\n{page_text}"
+            
+        return {
+            "enonce_text": e_text,
+            "corrige_text": c_text,
+            "copie_text": full_copie_text
+        }
+
+def solver_node(state: AgentState):
+    """Nœud Étudiant : Résout l'énoncé."""
+    print("--- [AGENT] Génération de la solution type ---")
     prompt = (
-        "Tu es un expert en correction d'OCR. Voici un texte brut extrait d'un examen. "
-        "1. Corrige les erreurs de lecture et de ponctuation. "
-        "2. Reformule les phrases si nécessaire pour qu'elles soient lisibles. "
-        "3. Liste clairement les questions posées sans y répondre.\n\n"
-        f"TEXTE BRUT : {extracted_text}"
+        "Tu es un expert académique. Résous cet énoncé d'examen de manière pédagogique. "
+        "Utilise le format Markdown et LaTeX pour les formules mathématiques.\n\n"
+        f"ÉNONCÉ EXTRAIT :\n{state['raw_text']}"
     )
-    
-    response = llm.invoke(prompt)
-    
-    # Mise à jour de l'état
-    return {
-        "cleaned_text": response.content, 
-        "raw_text": extracted_text
-    }
+    res = llm.invoke(prompt)
+    return {"solution": res.content}
 
-# --- NŒUD 2 : SOLVER (RÉSOLUTION PÉDAGOGIQUE) ---
-def solve_exam_node(state: AgentState):
-    print("--- [AGENT] Début du nœud SOLVER ---")
-    
-    # On récupère le texte déjà nettoyé au nœud précédent
-    cleaned = state.get("cleaned_text", "Pas de texte à résoudre.")
-    
+def grader_node(state: AgentState):
+    """Nœud Professeur : Corrige la copie par rapport au barème et au corrigé."""
+    print("--- [AGENT] Évaluation de la copie étudiant ---")
     prompt = (
-        "Tu es un professeur assistant. Résous les questions d'examen suivantes de manière "
-        "claire, étape par étape, en utilisant un ton pédagogique et un format Markdown élégant.\n\n"
-        f"QUESTIONS : {cleaned}"
+        "Tu es un professeur rigoureux. Compare la COPIE ÉTUDIANT au CORRIGÉ TYPE en respectant l'ÉNONCÉ et son barème.\n\n"
+        f"1. ÉNONCÉ & BARÈME : {state['enonce_text']}\n"
+        f"2. CORRIGÉ DE RÉFÉRENCE : {state['corrige_text']}\n"
+        f"3. COPIE ÉTUDIANT : {state['copie_text']}\n\n"
+        "MISSION : Produis un rapport de correction Markdown élégant. "
+        "Pour chaque question : Note attribuée, points retirés, et explication pédagogique. "
+        "Termine par la NOTE TOTALE de l'étudiant."
     )
-    
-    response = llm.invoke(prompt)
-    return {"solution": response.content}
+    res = llm.invoke(prompt)
+    return {"rapport_correction": res.content}
 
-# --- CONSTRUCTION DU GRAPH ---
+# --- 5. LOGIQUE DE ROUTAGE ---
+
+def router(state: AgentState):
+    """Décide quel chemin prendre dans le graph."""
+    return "solver" if state["mode"] == "solve" else "grader"
+
+# --- 6. CONSTRUCTION DU GRAPH ---
+
 workflow = StateGraph(AgentState)
 
 # Ajout des nœuds
-workflow.add_node("cleaner", clean_text_node)
-workflow.add_node("solver", solve_exam_node)
+workflow.add_node("extraction", extraction_node)
+workflow.add_node("solver", solver_node)
+workflow.add_node("grader", grader_node)
 
-# Définition des flux
-workflow.set_entry_point("cleaner")
-workflow.add_edge("cleaner", "solver")
+# Définition des connexions
+workflow.set_entry_point("extraction")
+
+# Branchement conditionnel après l'extraction
+workflow.add_conditional_edges(
+    "extraction",
+    router,
+    {
+        "solver": "solver",
+        "grader": "grader"
+    }
+)
+
 workflow.add_edge("solver", END)
+workflow.add_edge("grader", END)
 
-# Compilation finale
+# Compilation
 exam_agent = workflow.compile()
