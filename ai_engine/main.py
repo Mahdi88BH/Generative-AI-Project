@@ -7,13 +7,12 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from pdf2image import convert_from_path
 from agent import exam_agent
 
-app = FastAPI(title="Nexus AI - Professor Mode (Auto-Grader)")
+app = FastAPI(title="Nexus AI - Hybrid Processor (Solve & Grade)")
 
-# Couleurs Terminal
+# --- CONFIGURATION STYLE TERMINAL ---
 G, C, Y, R, B = "\033[92m", "\033[96m", "\033[93m", "\033[0m", "\033[1m"
-
 TEMP_DIR = "temp_exams"
-POPPLER_PATH = r"C:\Program Files\poppler\Library\bin" # À AJUSTER SELON TON PC
+POPPLER_PATH = r"C:\Program Files\poppler\Library\bin" # Vérifie ce chemin sur ton PC
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 def anim(msg, t=1.0):
@@ -28,73 +27,111 @@ def anim(msg, t=1.0):
     sys.stdout.write(f"\r{G}✔ {msg} OK{R}\n")
 
 def save_file(upload_file):
-    """Sauvegarde sécurisée et renvoie le chemin absolu."""
-    fname = os.path.basename(upload_file.filename)
-    path = os.path.abspath(os.path.join(TEMP_DIR, fname))
+    """Nettoie le nom du fichier et le sauvegarde localement."""
+    if not upload_file: return None
+    pure_name = os.path.basename(upload_file.filename)
+    path = os.path.abspath(os.path.join(TEMP_DIR, pure_name))
     with open(path, "wb") as buffer:
         shutil.copyfileobj(upload_file.file, buffer)
     return path
 
-@app.post("/api/v1/grade")
-async def grade_exam(
+def handle_pdf(path, paths_to_clean):
+    """Convertit un PDF en liste de chemins d'images JPEG."""
+    images = []
+    if path.lower().endswith(".pdf"):
+        anim("PDF-CONVERTER: Extraction des pages")
+        pages = convert_from_path(path, poppler_path=POPPLER_PATH)
+        for i, page in enumerate(pages):
+            p_path = os.path.join(TEMP_DIR, f"tmp_page_{i}_{int(time.time())}.jpg")
+            page.save(p_path, "JPEG")
+            images.append(p_path)
+            paths_to_clean.append(p_path)
+    else:
+        images = [path]
+    return images
+
+@app.post("/api/v1/process")
+async def process_exam(
     enonce: UploadFile = File(...), 
-    corrige: UploadFile = File(...), 
-    copie: UploadFile = File(...)
+    corrige: UploadFile = File(None), 
+    copie: UploadFile = File(None)
 ):
-    print(f"\n{B}{Y}⚡ PROTOCOLE DE CORRECTION AUTOMATISÉE ACTIVÉ{R}")
+    print(f"\n{B}{Y}⚡ DÉTECTION DU FLUX D'ENTRÉE NEXUS{R}")
     start_total = time.time()
     paths_to_clean = []
 
     try:
-        # 1. SAUVEGARDE DES FICHIERS DE RÉFÉRENCE
+        # 1. Sauvegarde obligatoire de l'énoncé
         path_enonce = save_file(enonce)
-        path_corrige = save_file(corrige)
-        path_copie = save_file(copie)
-        paths_to_clean.extend([path_enonce, path_corrige, path_copie])
+        paths_to_clean.append(path_enonce)
 
-        # 2. GESTION DU MULTI-PAGES (SI PDF)
-        copie_images = []
-        if path_copie.lower().endswith(".pdf"):
-            anim("PDF-ENGINE: Conversion des pages de la copie")
-            pages = convert_from_path(path_copie, poppler_path=POPPLER_PATH)
-            for i, page in enumerate(pages):
-                p_path = os.path.join(TEMP_DIR, f"page_{i}.jpg")
-                page.save(p_path, "JPEG")
-                copie_images.append(p_path)
-                paths_to_clean.append(p_path)
+        # 2. LOGIQUE DE DÉCISION DU MODE
+        if not corrige and not copie:
+            # --- MODE A : RÉSOLUTION SIMPLE (Étudiant) ---
+            print(f"{B}{C}🎯 MODE DÉTECTÉ : RÉSOLUTION D'ÉNONCÉ{R}")
+            anim("AGENTS: Analyse visuelle de l'exercice")
+            
+            inputs = {
+                "image_path": path_enonce, 
+                "mode": "solve"
+            }
+            result = exam_agent.invoke(inputs)
+            
+            dt = round(time.time() - start_total, 2)
+            print(f"{G}{B}✅ SOLUTION GÉNÉRÉE EN {dt}s{R}")
+            
+            return {
+                "status": "success",
+                "mode": "student_solve",
+                "ocr_extracted": result.get("raw_text"),
+                "solution": result.get("solution")
+            }
+
         else:
-            copie_images = [path_copie]
+            # --- MODE B : CORRECTION DE COPIE (Professeur) ---
+            print(f"{B}{Y}🎓 MODE DÉTECTÉ : AUTO-GRADER (Correction){R}")
+            
+            # Sauvegarde des pièces jointes
+            path_corrige = save_file(corrige) if corrige else None
+            path_copie = save_file(copie) if copie else None
+            
+            if path_corrige: paths_to_clean.append(path_corrige)
+            if path_copie: paths_to_clean.append(path_copie)
 
-        # 3. LANCEMENT DE LA BOUCLE AGENTIC
-        # On passe les chemins à l'agent (il appellera le MCP autant de fois que nécessaire)
-        anim(f"AGENTS: Analyse de {len(copie_images)} page(s) étudiant")
-        
-        inputs = {
-            "enonce_path": path_enonce,
-            "corrige_path": path_corrige,
-            "copie_paths": copie_images  # Liste de chemins
-        }
-        
-        result = exam_agent.invoke(inputs)
-        
-        dt = round(time.time() - start_total, 2)
-        print(f"{G}{B}✅ RAPPORT GÉNÉRÉ EN {dt}s{R}")
+            # Gestion spécifique de la copie (Image ou PDF)
+            copie_images = handle_pdf(path_copie, paths_to_clean) if path_copie else []
 
-        return {
-            "status": "success",
-            "rapport": result.get("rapport_correction"),
-            "note_finale": result.get("note_finale")
-        }
+            anim(f"AGENTS: Comparaison multicritères ({len(copie_images)} pages)")
+            
+            inputs = {
+                "enonce_path": path_enonce,
+                "corrige_path": path_corrige,
+                "copie_paths": copie_images,
+                "mode": "grade"
+            }
+            result = exam_agent.invoke(inputs)
+            
+            dt = round(time.time() - start_total, 2)
+            print(f"{G}{B}✅ RAPPORT DE CORRECTION GÉNÉRÉ EN {dt}s{R}")
+
+            return {
+                "status": "success",
+                "mode": "professor_grade",
+                "rapport": result.get("rapport_correction")
+            }
 
     except Exception as e:
-        print(f"{Y}❌ ERREUR SYSTÈME: {str(e)}{R}")
+        print(f"{Y}❌ CRASH SYSTÈME: {str(e)}{R}")
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:
-        # Nettoyage de tous les fichiers temporaires
+        # Nettoyage automatique des fichiers temporaires
         for p in paths_to_clean:
-            if os.path.exists(p): os.remove(p)
+            if p and os.path.exists(p):
+                try: os.remove(p)
+                except: pass
 
 if __name__ == "__main__":
-    print(f"{G}{B}NEXUS GRADER CORE ONLINE - PORT 8001{R}")
+    print(f"{G}{B}--- NEXUS HYBRID ENGINE V3.0 ONLINE ---{R}")
+    print(f"{C}En attente de requêtes sur http://127.0.0.1:8001{R}")
     uvicorn.run(app, host="127.0.0.1", port=8001)
