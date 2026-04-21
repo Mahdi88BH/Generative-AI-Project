@@ -8,6 +8,7 @@ class Exam(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     result_text = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, default='Pending') 
+    mode = models.CharField(max_length=20, default="solve")
 
     def __str__(self):
         # Utilisation de self.user.username pour un affichage clair dans l'admin
