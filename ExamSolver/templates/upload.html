@@ -39,7 +39,8 @@
             color: var(--text-color);
             overflow: hidden;
         }
-
+.markdown-container pre { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid var(--glass-border); overflow-x: auto; margin: 10px 0; }
+.markdown-container code { color: var(--primary); font-family: monospace; }
         /* --- 3D BACKGROUND CANVAS --- */
         #canvas-container {
             position: fixed;
@@ -281,18 +282,18 @@
                     <div class="message-row ai-row">
                         <div class="message-content">
                             <div class="avatar" style="background: var(--primary); color: white; box-shadow: 0 0 15px var(--primary-glow);"><i class="fa-solid fa-atom"></i></div>
-                            <div class="text">
-                                {% if exam.result_text %}
-                                    <div class="markdown-container">
-                                        {{ exam.result_text|markdown|safe }}
-                                    </div>
-                                {% else %}
-                                    <div class="typing-indicator" style="display: flex; align-items: center; gap: 15px;">
-                                        <div class="typing-dots"><span></span><span></span><span></span></div>
-                                        <span style="color: var(--primary); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.5px;">SYNTHÈSE MULTI-AGENTS...</span>
-                                    </div>
-                                {% endif %}
-                            </div>
+<div class="text">
+    {% if exam.result_text %}
+        <div class="markdown-container tex2jax_process">
+            {{ exam.result_text|markdown|safe }}
+        </div>
+    {% else %}
+        <div class="typing-indicator" style="display: flex; align-items: center; gap: 15px;">
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+            <span style="color: var(--primary); font-weight: 700; font-size: 0.9rem; letter-spacing: 0.5px;">SYNTHÈSE MULTI-AGENTS...</span>
+        </div>
+    {% endif %}
+</div>
                         </div>
                     </div>
                 {% else %}
@@ -320,16 +321,18 @@
             <div class="input-wrapper">
                 <form method="POST" enctype="multipart/form-data" id="uploadForm">
                     {% csrf_token %}
-                    <div class="input-container">
-                        <label for="exam_image" class="icon-btn" title="Uploader un document"><i class="fa-solid fa-plus-circle fa-lg"></i></label>
-                        <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleFileSelect(this)" style="display: none;">
-                        
-                        <input type="text" name="user_message" id="user_message" placeholder="Injection d'un examen dans le flux..." autocomplete="off">
-                        
-                        <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none; color: var(--primary);">
-                            <i class="fa-solid fa-paper-plane-top fa-lg"></i> EXÉCUTER
-                        </button>
-                    </div>
+<div class="input-container">
+    <label for="exam_image" class="icon-btn" title="Uploader (Image/PDF)">
+        <i class="fa-solid fa-plus-circle fa-lg"></i>
+    </label>
+    <input type="file" name="exam_image" id="exam_image" accept="image/*,.pdf" onchange="handleFileSelect(this)" style="display: none;">
+    
+    <input type="text" name="user_message" id="user_message" placeholder="Injection d'un examen ou message au Nexus Core..." autocomplete="off" style="flex-grow: 1; background: transparent; border: none; color: white; outline: none; padding-left: 15px; font-family: inherit;">
+    
+    <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none; color: var(--primary);">
+        <i class="fa-solid fa-paper-plane-top fa-lg"></i> EXÉCUTER
+    </button>
+</div>
                 </form>
                 <p style="text-align: center; font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">Nexus Engine v3.1 | Groq Accelerated</p>
             </div>
@@ -410,11 +413,32 @@
         }
     }
 
-    function submitExam() {
-        sendBtn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
-        userMsgInput.value = userMsgInput.value || "Analyse standard";
-        sendBtn.disabled = true;
-        setTimeout(() => uploadForm.submit(), 300);
+function submitExam() {
+        const btn = document.getElementById('sendBtn');
+        const userMsgInput = document.getElementById('user_message');
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('exam_image');
+
+        // 1. Animation du bouton
+        btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
+        btn.disabled = true;
+
+        // 2. Gestion intelligente de la valeur par défaut
+        // Si l'utilisateur a mis un fichier mais n'a rien écrit, on met "Analyse standard"
+        // Mais s'il y a déjà un examen (mode chat) et qu'il écrit, on laisse son texte.
+        if (userMsgInput.value.trim() === "") {
+            if (fileInput.files.length > 0) {
+                userMsgInput.value = "Analyse standard";
+            } else {
+                // Optionnel : si pas de fichier et pas de texte, on peut empêcher l'envoi
+                // userMsgInput.value = "Demande de précision"; 
+            }
+        }
+
+        // 3. Envoi après un léger délai pour l'effet visuel
+        setTimeout(() => {
+            uploadForm.submit();
+        }, 300);
     }
 
     // --- DÉCLENCHEMENT DU RENDU MATHÉMATIQUE ---
