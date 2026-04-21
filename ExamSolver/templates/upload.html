@@ -1,4 +1,5 @@
 {% load static %}
+{% load markdown_extras %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -10,6 +11,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
         :root {
@@ -17,7 +21,7 @@
             --primary-glow: rgba(16, 163, 127, 0.4);
             --dark: #0a0b0d;
             --sidebar-bg: rgba(10, 11, 13, 0.85);
-            --main-bg: transparent; /* Pour voir les particules Three.js */
+            --main-bg: transparent;
             --glass: rgba(255, 255, 255, 0.03);
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-color: #ececf1;
@@ -35,7 +39,7 @@
             overflow: hidden;
         }
 
-        /* --- 3D BACKGROUND CANVAS --- */
+        /* --- 3D BACKGROUND --- */
         #canvas-container {
             position: fixed;
             top: 0; left: 0;
@@ -47,10 +51,10 @@
             display: flex; 
             height: 100vh; 
             width: 100vw; 
-            backdrop-filter: blur(15px); /* Effet de flou sur le fond 3D */
+            backdrop-filter: blur(15px);
         }
 
-        /* --- SIDEBAR GLASSMORPHISM --- */
+        /* --- SIDEBAR --- */
         .sidebar {
             width: 280px;
             background-color: var(--sidebar-bg);
@@ -148,9 +152,17 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        .text { line-height: 1.8; font-size: 1rem; color: #e1e1e6; }
+        /* --- MARKDOWN STYLING --- */
+        .text { line-height: 1.8; font-size: 1rem; color: #e1e1e6; width: 100%; }
+        
+        .markdown-content h3 { color: var(--primary); margin: 1.5rem 0 1rem 0; font-weight: 800; border-bottom: 1px solid var(--glass-border); padding-bottom: 5px; }
+        .markdown-content h4 { color: #fff; margin: 1.2rem 0 0.6rem 0; font-weight: 600; }
+        .markdown-content p { margin-bottom: 1.2rem; }
+        .markdown-content ul, .markdown-content ol { margin: 0 0 1.2rem 1.5rem; }
+        .markdown-content li { margin-bottom: 0.5rem; }
+        .markdown-content strong { color: var(--primary); }
 
-        /* --- INPUT BAR GLASS --- */
+        /* --- INPUT BAR --- */
         .input-wrapper {
             position: absolute;
             bottom: 0;
@@ -174,7 +186,6 @@
         }
 
         .input-container:focus-within { border-color: var(--primary); }
-
         .icon-btn { color: #8e8ea0; cursor: pointer; padding: 10px; transition: 0.3s; border: none; background: none; }
         .icon-btn:hover { color: var(--primary); transform: scale(1.1); }
 
@@ -197,6 +208,19 @@
             .message-content { gap: 1rem; padding: 0 1rem; }
         }
     </style>
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
 </head>
 <body>
 
@@ -260,9 +284,9 @@
                     <div class="message-row ai-row">
                         <div class="message-content">
                             <div class="avatar" style="background: var(--primary); color: white; box-shadow: 0 0 15px var(--primary-glow);"><i class="fa-solid fa-atom"></i></div>
-                            <div class="text">
+                            <div class="text markdown-content">
                                 {% if exam.result_text %}
-                                    <div style="white-space: pre-wrap;">{{ exam.result_text }}</div>
+                                    {{ exam.result_text|markdown|safe }}
                                 {% else %}
                                     <div class="typing-indicator" style="display: flex; align-items: center; gap: 15px;">
                                         <div class="typing-dots"><span></span><span></span><span></span></div>
@@ -302,7 +326,7 @@
                         <input type="file" name="exam_image" id="exam_image" accept="image/*" onchange="handleFileSelect(this)" style="display: none;">
                         <div id="input-placeholder" style="flex-grow: 1; color: #6e6e80; padding-left: 15px; font-weight: 600;">Injection d'un examen dans le flux...</div>
                         <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none; color: var(--primary);">
-                            <i class="fa-solid fa-paper-plane-top fa-lg"></i> EXÉCUTER
+                            <i class="fa-solid fa-paper-plane fa-lg"></i> EXÉCUTER
                         </button>
                     </div>
                 </form>
@@ -312,7 +336,7 @@
     </div>
 
     <script>
-        // --- 3D PARTICLES BACKGROUND (Même que l'index) ---
+        // --- 3D PARTICLES ---
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -344,35 +368,30 @@
         });
 
         // --- DASHBOARD LOGIC ---
-        const chatContainer = document.getElementById('chatContainer');
-        const welcomeScreen = document.getElementById('welcomeScreen');
-        const previewMessage = document.getElementById('previewMessage');
-        const imagePreview = document.getElementById('imagePreview');
-        const placeholder = document.getElementById('input-placeholder');
-        const sendBtn = document.getElementById('sendBtn');
-        const uploadForm = document.getElementById('uploadForm');
-
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    if (welcomeScreen) welcomeScreen.style.display = 'none';
-                    imagePreview.src = e.target.result;
-                    previewMessage.style.display = 'flex';
+                    const welcome = document.getElementById('welcomeScreen');
+                    if (welcome) welcome.style.display = 'none';
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('previewMessage').style.display = 'flex';
                     document.getElementById('fileNameDisplay').innerText = "DATA DETECTÉE : " + input.files[0].name;
-                    placeholder.innerText = "PRÊT POUR INJECTION";
-                    sendBtn.style.display = "flex";
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    document.getElementById('input-placeholder').innerText = "PRÊT POUR INJECTION";
+                    document.getElementById('sendBtn').style.display = "flex";
+                    const scroller = document.getElementById('chatContainer');
+                    scroller.scrollTop = scroller.scrollHeight;
                 }
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
         function submitExam() {
-            sendBtn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
-            placeholder.innerHTML = 'SYNC AVEC NEXUS CORE...';
-            sendBtn.disabled = true;
-            setTimeout(() => uploadForm.submit(), 500);
+            const btn = document.getElementById('sendBtn');
+            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
+            document.getElementById('input-placeholder').innerHTML = 'SYNC AVEC NEXUS CORE...';
+            btn.disabled = true;
+            setTimeout(() => document.getElementById('uploadForm').submit(), 500);
         }
     </script>
 </body>
