@@ -2,10 +2,9 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 import shutil
 import os
 import uvicorn
-from ocr_engine import extract_text_from_exam
 from agent import exam_agent
 
-app = FastAPI(title="Engine AI Exam Solver - Debug Mode")
+app = FastAPI(title="Nexus AI - Exam Solver")
 
 TEMP_DIR = "temp_exams"
 if not os.path.exists(TEMP_DIR):
@@ -14,41 +13,28 @@ if not os.path.exists(TEMP_DIR):
 @app.post("/api/v1/solve")
 async def solve_exam(file: UploadFile = File(...)):
     safe_filename = os.path.basename(file.filename)
-    temp_path = os.path.join(TEMP_DIR, safe_filename)
+    # Utilisation du chemin absolu pour éviter les erreurs de lecture du MCP
+    temp_path = os.path.abspath(os.path.join(TEMP_DIR, safe_filename))
     
     try:
-        # 1. Sauvegarde
+        # 1. Sauvegarde du fichier pour que le serveur MCP puisse le lire
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        # 2. OCR avec LOG
-        raw_text = extract_text_from_exam(temp_path)
-        print(f"\n--- [STEP 1: OCR] ---")
-        print(f"Texte extrait (50 p. car.): {raw_text[:50]}...")
-        
-        if not raw_text or len(raw_text.strip()) < 5:
-            print("❌ Erreur: OCR vide ou trop court.")
-            return {"status": "error", "solution": "L'image est illisible ou ne contient pas de texte."}
+        print(f"--- [STEP 1: FILE SAVED] --- {temp_path}")
 
-        # 3. AGENT avec LOG DE STRUCTURE
+        # 2. APPEL DE L'AGENT : On passe 'image_path' et NON 'raw_text'
         print(f"--- [STEP 2: AGENT INVOKE] ---")
-        inputs = {"raw_text": raw_text}
+        inputs = {"image_path": temp_path} 
         result = exam_agent.invoke(inputs)
         
-        # LOG CRITIQUE : Affiche la structure exacte reçue de LangGraph
-        print(f"Structure du dictionnaire reçu : {result.keys()}")
-        print(f"Contenu complet du résultat : {result}")
-
-        # Extraction sécurisée : On teste plusieurs clés au cas où
-        solution = result.get("solution") or result.get("solver", {}).get("solution")
-        
-        if not solution:
-            print("❌ Erreur: L'agent a répondu mais la clé 'solution' est introuvable.")
-            solution = "L'IA a traité la demande mais n'a pas pu formater la réponse."
+        # 3. Extraction sécurisée du résultat
+        solution = result.get("solution")
+        raw_ocr = result.get("raw_text")
 
         return {
             "status": "success",
-            "ocr_extracted": raw_text,
+            "ocr_extracted": raw_ocr,
             "solution": solution
         }
 
@@ -57,9 +43,12 @@ async def solve_exam(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:
+        # On attend un peu ou on gère la suppression après le processus
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except:
+                pass # Évite de crash si le fichier est encore utilisé
 
 if __name__ == "__main__":
-
     uvicorn.run(app, host="127.0.0.1", port=8001)
