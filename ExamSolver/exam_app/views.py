@@ -37,40 +37,49 @@ def logout_view(request):
     logout(request)
     return redirect('index')
 
-# --- LOGIQUE D'ANALYSE (MICROSERVICE SYNC) ---
+# --- LOGIQUE D'ANALYSE (SYNERGIE IMAGE + TEXTE) ---
 
 @login_required(login_url='login')
 def upload_view(request):
     """
-    Vue principale : Gère l'envoi vers FastAPI (Port 8001).
+    Vue principale : Envoie l'image ET le contexte utilisateur à FastAPI.
     """
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     
     if request.method == "POST" and request.FILES.get("exam_image"):
         uploaded_file = request.FILES["exam_image"]
+        # Récupération du message de contexte saisi par l'utilisateur
+        user_message = request.POST.get("user_message", "") 
         
-        # 1. Sauvegarde en DB (Processing)
+        # 1. Sauvegarde en DB (On stocke aussi le prompt utilisateur pour l'historique)
         exam = Exam.objects.create(
             image=uploaded_file, 
             user=request.user, 
-            status="Processing",
-            mode="solve" # Mode par défaut pour la version simple
+            status="Processing"
         )
         
         try:
-            # 2. APPEL FASTAPI
+            # 2. PRÉPARATION DE L'APPEL FASTAPI
             url_ai_engine = "http://127.0.0.1:8001/api/v1/solve"
             
+            # Données textuelles (contexte)
+            data_payload = {"user_context": user_message}
+            
             with exam.image.open('rb') as f:
-                # On s'assure d'envoyer le bon type MIME
                 files = {'file': (exam.image.name, f, 'image/jpeg')}
-                # Groq est rapide, mais on laisse 60s pour l'OCR
-                response = requests.post(url_ai_engine, files=files, timeout=60)
+                
+                # Envoi multipart : files pour l'image, data pour le texte
+                response = requests.post(
+                    url_ai_engine, 
+                    files=files, 
+                    data=data_payload, 
+                    timeout=90
+                )
             
             # 3. RÉCUPÉRATION DU RÉSULTAT
             if response.status_code == 200:
                 data = response.json()
-                exam.result_text = data.get("solution", "Aucune solution générée.")
+                exam.result_text = data.get("solution", "Aucune réponse générée.")
                 exam.status = "Completed"
             else:
                 exam.status = "Error"
@@ -78,7 +87,7 @@ def upload_view(request):
                 
         except requests.exceptions.ConnectionError:
             exam.status = "Error"
-            exam.result_text = "Connexion échouée : Vérifiez que le terminal 'ai_engine/main.py' est lancé sur le port 8001."
+            exam.result_text = "Le service IA (Port 8001) est hors ligne."
         except Exception as e:
             exam.status = "Error"
             exam.result_text = f"Erreur système : {str(e)}"
