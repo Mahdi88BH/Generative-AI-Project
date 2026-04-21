@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from .forms import ModernRegisterForm
 from .models import Exam
 
-# --- ACCUEIL & AUTH ---
+# --- NAVIGATION & AUTH ---
 def index_view(request):
     return render(request, "index.html")
 
@@ -36,52 +36,53 @@ def logout_view(request):
     logout(request)
     return redirect('index')
 
-# --- LOGIQUE D'ANALYSE HYBRIDE ---
+# --- ENGINE LOGIC (MICROSERVICE SYNC) ---
 
 @login_required(login_url='login')
 def upload_view(request):
-    history = Exam.objects.filter(user=request.user) # Le Meta ordering du modèle gère le tri
+    """
+    Vue principale : Gère l'envoi vers FastAPI et l'affichage contextuel.
+    """
+    # Récupération de l'historique (ordonné par le Meta du modèle ou manuellement ici)
+    history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     
     if request.method == "POST" and request.FILES.get("exam_image"):
-        # 1. RÉCUPÉRATION DES FICHIERS
         enonce = request.FILES.get("exam_image")
-        corrige = request.FILES.get("corrige_file") # Optionnel
-        copie = request.FILES.get("copie_file")     # Optionnel
+        copie = request.FILES.get("copie_file") # Peut être None (Mode étudiant)
         
-        # 2. CRÉATION DE L'OBJET EN BASE
-        # On détermine le mode avant l'envoi
-        current_mode = 'grade' if (corrige and copie) else 'solve'
+        # 1. Détermination du mode avant création
+        mode_detecte = 'grade' if copie else 'solve'
         
+        # 2. Création de l'entrée initiale
         exam = Exam.objects.create(
             user=request.user,
             image=enonce,
-            corrige_file=corrige,
             copie_file=copie,
-            mode=current_mode,
+            mode=mode_detecte,
             status="Processing"
         )
         
         try:
-            # 3. PRÉPARATION DE L'ENVOI À FASTAPI
-            url_ai_engine = "http://127.0.0.1:8001/api/v1/process"
+            # 3. APPEL AU MOTEUR IA (Port 8001)
+            url_ai = "http://127.0.0.1:8001/api/v1/process"
             
-            # Construction dynamique du dictionnaire de fichiers
+            # Préparation des fichiers pour FastAPI
+            # .read() récupère le flux binaire du fichier en mémoire
             files = {
                 'enonce': (enonce.name, enonce.read(), enonce.content_type)
             }
-            if corrige:
-                files['corrige'] = (corrige.name, corrige.read(), corrige.content_type)
             if copie:
                 files['copie'] = (copie.name, copie.read(), copie.content_type)
-            
-            # Appel API (Timeout de 180s pour laisser le temps au PDF multi-pages)
-            response = requests.post(url_ai_engine, files=files, timeout=180)
+
+            # Timeout de 180s pour laisser le temps au traitement multi-pages
+            response = requests.post(url_ai, files=files, timeout=180)
             
             if response.status_code == 200:
                 data = response.json()
                 
-                # On récupère soit le rapport (mode grade), soit la solution (mode solve)
-                exam.result_text = data.get("rapport") or data.get("solution") or "Analyse terminée sans texte."
+                # Récupération contextuelle du résultat selon le mode
+                # FastAPI renvoie soit 'solution' soit 'rapport'
+                exam.result_text = data.get("rapport") or data.get("solution")
                 exam.status = "Completed"
             else:
                 exam.status = "Error"
@@ -89,10 +90,10 @@ def upload_view(request):
                 
         except requests.exceptions.Timeout:
             exam.status = "Error"
-            exam.result_text = "Le traitement prend trop de temps (PDF volumineux ?)."
+            exam.result_text = "Le délai de traitement a expiré (Analyse complexe)."
         except requests.exceptions.ConnectionError:
             exam.status = "Error"
-            exam.result_text = "Moteur IA indisponible (Vérifiez main.py et mcp_server.py)."
+            exam.result_text = "Connexion impossible avec le moteur IA (Port 8001 fermé)."
         except Exception as e:
             exam.status = "Error"
             exam.result_text = f"Erreur système : {str(e)}"
@@ -102,16 +103,24 @@ def upload_view(request):
     
     return render(request, 'upload.html', {'exam_history': history})
 
-# --- HISTORIQUE & DÉTAILS ---
+# --- GESTION DE L'HISTORIQUE CONTEXTUEL ---
 
 @login_required(login_url='login')
 def exam_detail_view(request, pk):
+    """
+    Affiche un examen spécifique tout en maintenant la barre latérale d'historique.
+    """
     exam = get_object_or_404(Exam, pk=pk, user=request.user)
-    history = Exam.objects.filter(user=request.user)
-    return render(request, 'upload.html', {'exam': exam, 'exam_history': history})
+    history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
+    
+    return render(request, 'upload.html', {
+        'exam': exam, 
+        'exam_history': history
+    })
 
 @login_required(login_url='login')
 def delete_exam_view(request, pk):
+    """Suppression d'un enregistrement."""
     exam = get_object_or_404(Exam, pk=pk, user=request.user)
     if request.method == "POST":
         exam.delete()
