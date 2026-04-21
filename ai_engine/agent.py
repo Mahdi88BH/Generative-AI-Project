@@ -83,24 +83,35 @@ def solver_node(state: AgentState):
     return {"solution": res.content}
 
 def grader_node(state: AgentState):
-    print("--- [AGENT] Évaluation Académique Multidisciplinaire ---")
+    print("--- [AGENT] Évaluation Académique Multidisciplinaire (Notation Finale) ---")
+    
     prompt = (
-        "Tu es un Professeur Universitaire expert dans la discipline concernée par l'épreuve "
-        "(Droit, Mathématiques, Philosophie, Sciences, etc.).\n\n"
-        f"--- ÉPREUVE (ÉNONCÉ) ---\n{state['enonce_text']}\n\n"
-        f"--- COPIE DE L'ÉTUDIANT ---\n{state['copie_text']}\n\n"
-        "MISSION :\n"
-        "1. Analyse l'épreuve et identifie les attentes académiques.\n"
-        "2. Évalue la copie de l'étudiant avec rigueur et objectivité.\n"
-        "3. Produis un rapport structuré en Markdown :\n"
-        "   - Analyse de la pertinence des réponses.\n"
-        "   - Identification des erreurs ou lacunes.\n"
-        "   - Note détaillée par question et Note Globale sur 20.\n"
-        "   - Conseil pédagogique pour l'étudiant."
+        "Tu es un Professeur Universitaire expert et pédagogue. Ta mission est de corriger une copie d'étudiant avec une précision chirurgicale.\n\n"
+        
+        "--- DOCUMENTS DE TRAVAIL ---\n"
+        f"1. ÉPREUVE (ÉNONCÉ) : {state['enonce_text']}\n"
+        f"2. COPIE DE L'ÉTUDIANT : {state['copie_text']}\n\n"
+        
+        "--- CONSIGNE DE CORRECTION ---\n"
+        "Pour chaque exercice ou question présente dans l'épreuve :\n"
+        "A. Énonce la RÉPONSE ACADÉMIQUE ATTENDUE.\n"
+        "B. Analyse la RÉPONSE DE L'ÉTUDIANT.\n"
+        "C. Si l'étudiant a faux, explique explicitement : 'POURQUOI VOTRE RÉPONSE N'EST PAS CORRECTE'.\n"
+        "D. Attribue une note partielle.\n\n"
+        
+        "--- STRUCTURE DU RAPPORT (MARKDOWN) ---\n"
+        "# 🎓 RAPPORT DE CORRECTION EXPERT\n"
+        "## 📊 Note Globale : [Note]/20\n\n"
+        "### 🔍 Analyse Détaillée par Question\n"
+        "(Répéter pour chaque question : Attentes vs Copie vs Justification d'erreur)\n\n"
+        "### 💡 Conseils de Progression\n"
+        "(Donner 2 ou 3 pistes d'amélioration concrètes selon les fautes détectées.)"
     )
+    
+    # Utilisation du LLM pour générer la correction basée sur le prompt renforcé
     res = llm.invoke(prompt)
+    
     return {"rapport_correction": res.content}
-
 # --- 5. LOGIQUE DE ROUTAGE ---
 
 def router(state: AgentState):
