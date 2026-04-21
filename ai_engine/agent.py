@@ -7,36 +7,40 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- 1. ÉTAT DE L'AGENT ---
-# Ajout d'une mémoire contextuelle : "subject_inferred"
 class AgentState(TypedDict):
     raw_text: str
+    user_context: str            # Nouveau : Message envoyé par l'utilisateur
     subject_inferred: str 
     cleaned_text: str
     solution: str
 
-# --- 2. INITIALISATION DU MOTEUR (GROQ) ---
+# --- 2. INITIALISATION GROQ ---
 llm = ChatGroq(
     model_name="llama-3.3-70b-versatile",
-    temperature=0.1, # Température basse pour une précision académique maximale
+    temperature=0.1,
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# --- 3. NŒUD 1 : L'ANALYSTE (AUTO-DÉTECTION & NETTOYAGE) ---
+# --- 3. NŒUD 1 : L'ANALYSTE (FUSION OCR + CONTEXTE) ---
 def analyze_and_clean_node(state: AgentState):
-    print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive & Nettoyage ---")
+    print(f"--- [NEXUS CORE] Phase 1 : Analyse contextuelle ---")
+    print(f"Note utilisateur : {state.get('user_context', 'Aucune')}")
     
-    prompt = f"""Tu es une IA experte en reconstruction de documents académiques endommagés.
-Voici un texte brut extrait par OCR (reconnaissance optique), qui contient des erreurs de lecture.
+    prompt = f"""Tu es une IA experte en reconstruction de documents.
+Voici un texte brut extrait par OCR qui contient des erreurs.
+
+CONTEXTE FOURNI PAR L'UTILISATEUR :
+{state.get('user_context', 'Pas de contexte fourni.')}
 
 MISSION :
-1. Analyse le texte et déduis de manière 100% autonome le domaine académique précis (Mathématiques, Base de données, Physique, etc.).
-2. Utilise la logique de ce domaine pour corriger toutes les hallucinations de l'OCR (ex: corrige 'MPN' en 'MDX' si c'est du Big Data, 'S' en '5' si c'est des maths).
-3. Reconstruis l'énoncé de manière claire et académique.
+1. En utilisant le contexte utilisateur ET le texte brut, identifie précisément la matière.
+2. Reconstruis l'énoncé de l'examen de manière fidèle. Le contexte utilisateur doit t'aider à corriger les mots que l'OCR a mal interprétés (ex: si l'utilisateur dit 'Big Data', corrige 'MPN' en 'MDX').
+3. Ne réponds rien d'autre que le format imposé.
 
-FORMAT DE RÉPONSE OBLIGATOIRE (Ne réponds rien d'autre) :
-[DOMAINE] : (Indique ici la matière en 3 mots maximum)
+FORMAT DE RÉPONSE :
+[DOMAINE] : (La matière)
 [ÉNONCÉ] :
-(Le texte de l'examen parfaitement corrigé)
+(Le texte corrigé)
 
 TEXTE OCR BRUT :
 {state['raw_text']}
@@ -44,10 +48,8 @@ TEXTE OCR BRUT :
     response = llm.invoke(prompt)
     content = response.content
     
-    # Extraction intelligente du domaine et du texte
-    domain = "Matière non identifiée"
+    domain = "Inconnu"
     cleaned = content
-    
     if "[DOMAINE]" in content and "[ÉNONCÉ]" in content:
         parts = content.split("[ÉNONCÉ]")
         domain = parts[0].replace("[DOMAINE]", "").replace(":", "").strip()
@@ -55,27 +57,26 @@ TEXTE OCR BRUT :
 
     return {"subject_inferred": domain, "cleaned_text": cleaned}
 
-# --- 4. NŒUD 2 : LE MAÎTRE (RÉSOLUTION CONTEXTUELLE) ---
+# --- 4. NŒUD 2 : LE MAÎTRE (RÉSOLUTION OPTIMISÉE) ---
 def solve_exam_node(state: AgentState):
-    print(f"--- [NEXUS CORE] Phase 2 : Résolution Experte ({state['subject_inferred']}) ---")
+    print(f"--- [NEXUS CORE] Phase 2 : Résolution ({state['subject_inferred']}) ---")
     
-    # Le prompt s'adapte dynamiquement grâce à la variable {state['subject_inferred']}
-    prompt = f"""Tu es un professeur d'université de rang A, expert mondial en {state['subject_inferred']}.
-On te confie cet examen officiel à résoudre. Ton but est de fournir le corrigé type parfait (Note visée : 20/20).
+    prompt = f"""Tu es un professeur expert en {state['subject_inferred']}.
+L'utilisateur a précisé ce contexte supplémentaire : {state.get('user_context', 'N/A')}.
 
-CONSIGNES STRICTES :
-- Agis de manière 100% directe. Ne fais AUCUNE phrase d'introduction du type "Voici la solution".
-- Résous chaque question étape par étape avec une pédagogie absolue.
-- Justifie chaque réponse, explique la logique derrière tes calculs ou ton code.
-- Pour TOUTE formule mathématique, équation ou variable, utilise impérativement le format LaTeX (ex: $x = 2$, $$y = mx + b$$).
+MISSION :
+- Résous l'énoncé de manière magistrale.
+- Utilise impérativement Markdown pour la structure (titres, listes).
+- Utilise LaTeX pour TOUTES les formules mathématiques ou variables ($...$).
+- Ne fais aucune introduction ni conclusion.
 
-ÉNONCÉ À RÉSOUDRE :
+ÉNONCÉ :
 {state['cleaned_text']}
 """
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 5. CONSTRUCTION DU GRAPH ---
+# --- 5. CONSTRUCTION ---
 workflow = StateGraph(AgentState)
 
 workflow.add_node("analyzer", analyze_and_clean_node)
