@@ -36,27 +36,27 @@ def logout_view(request):
     logout(request)
     return redirect('index')
 
-# --- ENGINE LOGIC (MICROSERVICE SYNC) ---
+# --- ENGINE LOGIC (MULTI-IMAGE SYNC) ---
 
 @login_required(login_url='login')
 def upload_view(request):
     """
-    Vue principale : Gère l'envoi vers FastAPI et l'affichage contextuel.
+    Gère l'envoi d'un énoncé et de plusieurs images de copies vers FastAPI.
     """
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     
     if request.method == "POST" and request.FILES.get("exam_image"):
         enonce = request.FILES.get("exam_image")
-        copie = request.FILES.get("copie_file") # Peut être None
+        # On récupère une liste de fichiers pour 'copie_file'
+        copies = request.FILES.getlist("copie_file") 
 
-        # 1. Détermination du mode pour la DB
-        mode_detecte = 'grade' if copie else 'solve'
+        # 1. Détermination du mode
+        mode_detecte = 'grade' if copies else 'solve'
         
-        # 2. Création de l'objet initial (Sauvegarde physique des fichiers)
+        # 2. Création de l'objet (On ne stocke qu'une image de référence en DB pour l'aperçu)
         exam = Exam.objects.create(
             user=request.user,
             image=enonce,
-            copie_file=copie,
             mode=mode_detecte,
             status="Processing"
         )
@@ -64,20 +64,22 @@ def upload_view(request):
         try:
             url_ai = "http://127.0.0.1:8001/api/v1/process"
             
-            # 3. PRÉPARATION DE L'ENVOI (Multi-part)
-            # On ré-ouvre les fichiers directement depuis l'objet pour être sûr du flux
-            files = {
-                'enonce': (exam.image.name, exam.image.open('rb'), 'image/jpeg')
-            }
-            if copie:
-                files['copie'] = (exam.copie_file.name, exam.copie_file.open('rb'), 'application/pdf' if exam.copie_file.name.endswith('.pdf') else 'image/jpeg')
+            # 3. PRÉPARATION MULTI-PART AVEC PLUSIEURS IMAGES
+            # FastAPI attend une liste pour le champ 'copie'
+            files = [
+                ('enonce', (enonce.name, enonce.read(), enonce.content_type))
+            ]
+            
+            # Ajout de chaque image de copie à la liste des fichiers
+            for img in copies:
+                # On remet le pointeur au début si nécessaire, ou on utilise .read() directement
+                files.append(('copie', (img.name, img.read(), img.content_type)))
 
-            # Timeout de 180s pour laisser le temps au traitement multi-pages
+            # Timeout de 180s pour laisser le temps à l'OCR de traiter chaque image
             response = requests.post(url_ai, files=files, timeout=180)
             
             if response.status_code == 200:
                 data = response.json()
-                # On récupère 'rapport' ou 'solution' selon le mode
                 exam.result_text = data.get("rapport") or data.get("solution")
                 exam.status = "Completed"
             else:
@@ -86,10 +88,7 @@ def upload_view(request):
                 
         except requests.exceptions.Timeout:
             exam.status = "Error"
-            exam.result_text = "Le délai de traitement a expiré."
-        except requests.exceptions.ConnectionError:
-            exam.status = "Error"
-            exam.result_text = "Moteur IA injoignable (Port 8001)."
+            exam.result_text = "Délai expiré : l'analyse multi-images prend du temps."
         except Exception as e:
             exam.status = "Error"
             exam.result_text = f"Erreur système : {str(e)}"
@@ -99,20 +98,11 @@ def upload_view(request):
     
     return render(request, 'upload.html', {'exam_history': history})
 
-# --- GESTION DE L'HISTORIQUE CONTEXTUEL ---
-
 @login_required(login_url='login')
 def exam_detail_view(request, pk):
-    """
-    Affiche un examen spécifique.
-    """
     exam = get_object_or_404(Exam, pk=pk, user=request.user)
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
-    
-    return render(request, 'upload.html', {
-        'exam': exam, 
-        'exam_history': history
-    })
+    return render(request, 'upload.html', {'exam': exam, 'exam_history': history})
 
 @login_required(login_url='login')
 def delete_exam_view(request, pk):
