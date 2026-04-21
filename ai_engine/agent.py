@@ -7,141 +7,132 @@ from langchain_groq import ChatGroq
 
 load_dotenv()
 
-# --- 1. CONFIGURATION DE L'ÉTAT (AGENT STATE) ---
+# --- 1. ÉTAT DE L'AGENT ---
 class AgentState(TypedDict):
-    mode: str               # "solve" ou "grade"
-    # Chemins des fichiers
-    image_path: Optional[str]      # Utilisé en mode solve
-    enonce_path: Optional[str]     # Utilisé en mode grade
-    corrige_path: Optional[str]    # Utilisé en mode grade
-    copie_paths: Optional[List[str]] # Liste de chemins (PDF ou images)
-    # Textes extraits
-    raw_text: str           # Texte énoncé (mode solve)
-    enonce_text: str        # Texte énoncé (mode grade)
-    corrige_text: str       # Texte corrigé type
-    copie_text: str         # Texte complet de la copie étudiant
-    # Résultats finaux
-    solution: str           # Résultat mode solve
-    rapport_correction: str # Résultat mode grade
+    mode: str
+    image_path: Optional[str]
+    enonce_path: Optional[str]
+    copie_paths: Optional[List[str]]
+    raw_text: str
+    enonce_text: str
+    copie_text: str
+    solution: str
+    rapport_correction: str
 
-# --- 2. INITIALISATION LLM ---
+# --- 2. INITIALISATION DU CERVEAU (LLAMA 3.3 70B) ---
 llm = ChatGroq(
     model_name="llama-3.3-70b-versatile", 
-    temperature=0.1,
+    temperature=0.1, # Basse température pour plus de rigueur mathématique
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# --- 3. UTILITAIRE OCR via MCP ---
+# --- 3. UTILITAIRE VISION (MCP CLIENT) ---
 def call_ocr(path: str) -> str:
+    """Communique avec le serveur MCP Vision sur le port 8002."""
     if not path or not os.path.exists(path):
         return ""
     try:
         with httpx.Client() as client:
             response = client.post(
                 "http://127.0.0.1:8002/tools/vision_ocr_tool", 
-                json={"arguments": {"image_path": path}},
+                json={"arguments": {"image_path": os.path.abspath(path)}},
                 timeout=60.0
             )
-            return response.json().get("content", "")
+            content = response.json().get("content", "")
+            return content if content else "[OCR: Aucun texte détecté]"
     except Exception as e:
-        return f"[Erreur OCR]: {str(e)}"
+        print(f"⚠️ Erreur MCP sur {path}: {e}")
+        return f"[Erreur OCR: {str(e)}]"
 
 # --- 4. NŒUDS DU GRAPH ---
 
 def extraction_node(state: AgentState):
-    """Nœud de vision : Extrait le texte de tous les documents fournis."""
+    """Extrait le texte de tous les documents selon le mode choisi."""
     print(f"--- [AGENT] Extraction OCR (Mode: {state['mode']}) ---")
     
     if state["mode"] == "solve":
         text = call_ocr(state["image_path"])
         return {"raw_text": text}
     else:
-        # Mode Grade : On extrait l'énoncé, le corrigé et TOUTES les pages de la copie
+        # Mode Grade : On lit l'épreuve et toutes les pages de la copie
         e_text = call_ocr(state["enonce_path"])
-        c_text = call_ocr(state["corrige_path"])
         
         full_copie_text = ""
-        for i, path in enumerate(state["copie_paths"]):
+        for i, path in enumerate(state["copie_paths"] or []):
             page_text = call_ocr(path)
             full_copie_text += f"\n--- PAGE {i+1} ---\n{page_text}"
             
         return {
             "enonce_text": e_text,
-            "corrige_text": c_text,
             "copie_text": full_copie_text
         }
 
 def solver_node(state: AgentState):
-    """Nœud Étudiant : Résout l'énoncé."""
-    print("--- [AGENT] Génération de la solution type ---")
+    """Nœud Étudiant : Résolution pure de l'épreuve."""
+    print("--- [AGENT] Génération de la solution académique ---")
+    
+    if not state.get("raw_text") or "[Erreur OCR]" in state["raw_text"]:
+        return {"solution": "❌ Impossible de lire l'énoncé. Vérifiez la qualité de l'image."}
+
     prompt = (
-        "Tu es un expert académique. Résous cet énoncé d'examen de manière pédagogique. "
-        "Utilise le format Markdown et LaTeX pour les formules mathématiques.\n\n"
+        "Tu es un expert académique de haut niveau. Résous l'énoncé suivant étape par étape.\n"
+        "Règles :\n"
+        "1. Utilise Markdown pour la structure.\n"
+        "2. Utilise LaTeX pour TOUTES les formules mathématiques (ex: $x^2$).\n"
+        "3. Sois pédagogique et clair.\n\n"
         f"ÉNONCÉ EXTRAIT :\n{state['raw_text']}"
     )
     res = llm.invoke(prompt)
     return {"solution": res.content}
 
 def grader_node(state: AgentState):
-    print("--- [AGENT] Évaluation Académique Multidisciplinaire (Notation Finale) ---")
+    """Nœud Professeur : Correction comparative sans corrigé type."""
+    print("--- [AGENT] Évaluation Experte Multi-Pages ---")
     
+    if not state.get("enonce_text") or not state.get("copie_text"):
+        return {"rapport_correction": "❌ Données insuffisantes pour la correction."}
+
     prompt = (
-        "Tu es un Professeur Universitaire expert et pédagogue. Ta mission est de corriger une copie d'étudiant avec une précision chirurgicale.\n\n"
-        
-        "--- DOCUMENTS DE TRAVAIL ---\n"
+        "Tu es un Professeur Universitaire expert. Ta mission est de corriger la copie d'un étudiant "
+        "en te basant uniquement sur l'ÉPREUVE fournie. Tu dois toi-même résoudre les exercices "
+        "pour évaluer l'étudiant.\n\n"
+        "--- DOCUMENTS ---\n"
         f"1. ÉPREUVE (ÉNONCÉ) : {state['enonce_text']}\n"
         f"2. COPIE DE L'ÉTUDIANT : {state['copie_text']}\n\n"
-        
-        "--- CONSIGNE DE CORRECTION ---\n"
-        "Pour chaque exercice ou question présente dans l'épreuve :\n"
-        "A. Énonce la RÉPONSE ACADÉMIQUE ATTENDUE.\n"
+        "MISSION :\n"
+        "A. Pour chaque question, donne la RÉPONSE ACADÉMIQUE ATTENDUE.\n"
         "B. Analyse la RÉPONSE DE L'ÉTUDIANT.\n"
-        "C. Si l'étudiant a faux, explique explicitement : 'POURQUOI VOTRE RÉPONSE N'EST PAS CORRECTE'.\n"
+        "C. Si faux, explique précisément : 'POURQUOI VOTRE RÉPONSE N'EST PAS CORRECTE'.\n"
         "D. Attribue une note partielle.\n\n"
-        
-        "--- STRUCTURE DU RAPPORT (MARKDOWN) ---\n"
+        "--- STRUCTURE DU RAPPORT ---\n"
         "# 🎓 RAPPORT DE CORRECTION EXPERT\n"
         "## 📊 Note Globale : [Note]/20\n\n"
         "### 🔍 Analyse Détaillée par Question\n"
-        "(Répéter pour chaque question : Attentes vs Copie vs Justification d'erreur)\n\n"
-        "### 💡 Conseils de Progression\n"
-        "(Donner 2 ou 3 pistes d'amélioration concrètes selon les fautes détectées.)"
+        "### 💡 Conseils de Progression"
     )
-    
-    # Utilisation du LLM pour générer la correction basée sur le prompt renforcé
     res = llm.invoke(prompt)
-    
     return {"rapport_correction": res.content}
-# --- 5. LOGIQUE DE ROUTAGE ---
 
+# --- 5. LOGIQUE DE ROUTAGE ---
 def router(state: AgentState):
-    """Décide quel chemin prendre dans le graph."""
     return "solver" if state["mode"] == "solve" else "grader"
 
 # --- 6. CONSTRUCTION DU GRAPH ---
-
 workflow = StateGraph(AgentState)
 
-# Ajout des nœuds
 workflow.add_node("extraction", extraction_node)
 workflow.add_node("solver", solver_node)
 workflow.add_node("grader", grader_node)
 
-# Définition des connexions
 workflow.set_entry_point("extraction")
 
-# Branchement conditionnel après l'extraction
 workflow.add_conditional_edges(
     "extraction",
     router,
-    {
-        "solver": "solver",
-        "grader": "grader"
-    }
+    {"solver": "solver", "grader": "grader"}
 )
 
 workflow.add_edge("solver", END)
 workflow.add_edge("grader", END)
 
-# Compilation
 exam_agent = workflow.compile()
