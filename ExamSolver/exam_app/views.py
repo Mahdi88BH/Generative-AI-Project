@@ -43,17 +43,16 @@ def upload_view(request):
     """
     Vue principale : Gère l'envoi vers FastAPI et l'affichage contextuel.
     """
-    # Récupération de l'historique (ordonné par le Meta du modèle ou manuellement ici)
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     
     if request.method == "POST" and request.FILES.get("exam_image"):
         enonce = request.FILES.get("exam_image")
-        copie = request.FILES.get("copie_file") # Peut être None (Mode étudiant)
-        
-        # 1. Détermination du mode avant création
+        copie = request.FILES.get("copie_file") # Peut être None
+
+        # 1. Détermination du mode pour la DB
         mode_detecte = 'grade' if copie else 'solve'
         
-        # 2. Création de l'entrée initiale
+        # 2. Création de l'objet initial (Sauvegarde physique des fichiers)
         exam = Exam.objects.create(
             user=request.user,
             image=enonce,
@@ -63,25 +62,22 @@ def upload_view(request):
         )
         
         try:
-            # 3. APPEL AU MOTEUR IA (Port 8001)
             url_ai = "http://127.0.0.1:8001/api/v1/process"
             
-            # Préparation des fichiers pour FastAPI
-            # .read() récupère le flux binaire du fichier en mémoire
+            # 3. PRÉPARATION DE L'ENVOI (Multi-part)
+            # On ré-ouvre les fichiers directement depuis l'objet pour être sûr du flux
             files = {
-                'enonce': (enonce.name, enonce.read(), enonce.content_type)
+                'enonce': (exam.image.name, exam.image.open('rb'), 'image/jpeg')
             }
             if copie:
-                files['copie'] = (copie.name, copie.read(), copie.content_type)
+                files['copie'] = (exam.copie_file.name, exam.copie_file.open('rb'), 'application/pdf' if exam.copie_file.name.endswith('.pdf') else 'image/jpeg')
 
             # Timeout de 180s pour laisser le temps au traitement multi-pages
             response = requests.post(url_ai, files=files, timeout=180)
             
             if response.status_code == 200:
                 data = response.json()
-                
-                # Récupération contextuelle du résultat selon le mode
-                # FastAPI renvoie soit 'solution' soit 'rapport'
+                # On récupère 'rapport' ou 'solution' selon le mode
                 exam.result_text = data.get("rapport") or data.get("solution")
                 exam.status = "Completed"
             else:
@@ -90,10 +86,10 @@ def upload_view(request):
                 
         except requests.exceptions.Timeout:
             exam.status = "Error"
-            exam.result_text = "Le délai de traitement a expiré (Analyse complexe)."
+            exam.result_text = "Le délai de traitement a expiré."
         except requests.exceptions.ConnectionError:
             exam.status = "Error"
-            exam.result_text = "Connexion impossible avec le moteur IA (Port 8001 fermé)."
+            exam.result_text = "Moteur IA injoignable (Port 8001)."
         except Exception as e:
             exam.status = "Error"
             exam.result_text = f"Erreur système : {str(e)}"
@@ -108,7 +104,7 @@ def upload_view(request):
 @login_required(login_url='login')
 def exam_detail_view(request, pk):
     """
-    Affiche un examen spécifique tout en maintenant la barre latérale d'historique.
+    Affiche un examen spécifique.
     """
     exam = get_object_or_404(Exam, pk=pk, user=request.user)
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
@@ -120,7 +116,6 @@ def exam_detail_view(request, pk):
 
 @login_required(login_url='login')
 def delete_exam_view(request, pk):
-    """Suppression d'un enregistrement."""
     exam = get_object_or_404(Exam, pk=pk, user=request.user)
     if request.method == "POST":
         exam.delete()
