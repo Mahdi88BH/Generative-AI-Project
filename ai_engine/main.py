@@ -1,54 +1,60 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-import shutil
 import os
+import shutil
+import time
+import sys
 import uvicorn
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from agent import exam_agent
 
-app = FastAPI(title="Nexus AI - Exam Solver")
+app = FastAPI(title="Nexus AI - Demo Mode")
 
-TEMP_DIR = "temp_exams"
-if not os.path.exists(TEMP_DIR):
-    os.makedirs(TEMP_DIR, exist_ok=True)
+# Style Terminal
+G = "\033[92m" # Green
+C = "\033[96m" # Cyan
+Y = "\033[93m" # Yellow
+R = "\033[0m"  # Reset
+B = "\033[1m"  # Bold
+
+def anim(msg, t=1.5):
+    chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    end = time.time() + t
+    idx = 0
+    while time.time() < end:
+        sys.stdout.write(f"\r{C}{chars[idx % len(chars)]} {msg}...{R}")
+        sys.stdout.flush()
+        time.sleep(0.1)
+        idx += 1
+    sys.stdout.write(f"\r{G}✔ {msg} OK{R}\n")
 
 @app.post("/api/v1/solve")
 async def solve_exam(file: UploadFile = File(...)):
-    safe_filename = os.path.basename(file.filename)
-    # Utilisation du chemin absolu pour éviter les erreurs de lecture du MCP
-    temp_path = os.path.abspath(os.path.join(TEMP_DIR, safe_filename))
+    print(f"\n{B}{Y}⚡ INITIALISATION DU CYCLE NEXUS{R}")
+    temp_path = os.path.abspath(os.path.join("temp_exams", file.filename))
     
     try:
-        # 1. Sauvegarde du fichier pour que le serveur MCP puisse le lire
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        anim("IO-BUFFER: Écriture du flux binaire")
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
         
-        print(f"--- [STEP 1: FILE SAVED] --- {temp_path}")
-
-        # 2. APPEL DE L'AGENT : On passe 'image_path' et NON 'raw_text'
-        print(f"--- [STEP 2: AGENT INVOKE] ---")
-        inputs = {"image_path": temp_path} 
-        result = exam_agent.invoke(inputs)
+        anim("AGENTS: Activation de la boucle LangGraph")
+        start = time.time()
+        result = exam_agent.invoke({"image_path": temp_path})
+        dt = round(time.time() - start, 2)
         
-        # 3. Extraction sécurisée du résultat
-        solution = result.get("solution")
-        raw_ocr = result.get("raw_text")
-
+        print(f"{G}{B}✅ ANALYSE TERMINÉE ({dt}s){R}")
+        print(f"{C}--- OCR Extrait ---{R}\n{result.get('raw_text')[:100]}...")
+        
         return {
             "status": "success",
-            "ocr_extracted": raw_ocr,
-            "solution": solution
+            "ocr_extracted": result.get("raw_text"),
+            "solution": result.get("solution")
         }
-
     except Exception as e:
-        print(f"❌ ERREUR CRITIQUE : {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-    
+        print(f"{Y}❌ CRASH CYCLE: {e}{R}")
+        raise HTTPException(500, detail=str(e))
     finally:
-        # On attend un peu ou on gère la suppression après le processus
-        if os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except:
-                pass # Évite de crash si le fichier est encore utilisé
+        if os.path.exists(temp_path): os.remove(temp_path)
 
 if __name__ == "__main__":
+    print(f"{G}{B}NEXUS CORE ONLINE - PORT 8001{R}")
     uvicorn.run(app, host="127.0.0.1", port=8001)
