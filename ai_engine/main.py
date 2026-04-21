@@ -1,79 +1,65 @@
-import os
-import shutil
-import time
-from typing import List, Optional
-import uvicorn
 from fastapi import FastAPI, UploadFile, File, HTTPException
+import shutil
+import os
+import uvicorn
+from ocr_engine import extract_text_from_exam
 from agent import exam_agent
 
-app = FastAPI(title="Nexus AI - Multi-Images Processor")
+app = FastAPI(title="Engine AI Exam Solver - Debug Mode")
 
 TEMP_DIR = "temp_exams"
-os.makedirs(TEMP_DIR, exist_ok=True)
+if not os.path.exists(TEMP_DIR):
+    os.makedirs(TEMP_DIR, exist_ok=True)
 
-def save_file(upload_file: UploadFile) -> str:
-    pure_name = os.path.basename(upload_file.filename)
-    # Ajout d'un timestamp pour éviter les écrasements
-    safe_name = f"{int(time.time())}_{pure_name}"
-    path = os.path.abspath(os.path.join(TEMP_DIR, safe_name))
-    with open(path, "wb") as buffer:
-        shutil.copyfileobj(upload_file.file, buffer)
-    return path
-
-@app.post("/api/v1/process")
-async def process_exam(
-    enonce: List[UploadFile] = File(...), 
-    copie: Optional[List[UploadFile]] = File(None)
-):
-    start_total = time.time()
-    paths_to_clean = []
-
+@app.post("/api/v1/solve")
+async def solve_exam(file: UploadFile = File(...)):
+    safe_filename = os.path.basename(file.filename)
+    temp_path = os.path.join(TEMP_DIR, safe_filename)
+    
     try:
-        # 1. Sauvegarde des images de l'énoncé
-        path_enonces = []
-        for file in enonce:
-            p = save_file(file)
-            path_enonces.append(p)
-            paths_to_clean.append(p)
+        # 1. Sauvegarde
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 2. OCR avec LOG
+        raw_text = extract_text_from_exam(temp_path)
+        print(f"\n--- [STEP 1: OCR] ---")
+        print(f"Texte extrait (50 p. car.): {raw_text[:50]}...")
+        
+        if not raw_text or len(raw_text.strip()) < 5:
+            print("❌ Erreur: OCR vide ou trop court.")
+            return {"status": "error", "solution": "L'image est illisible ou ne contient pas de texte."}
 
-        # 2. LOGIQUE DÉCISIONNELLE
-        if not copie:
-            # --- MODE RÉSOLUTION ---
-            print("🎯 MODE : RÉSOLUTION ACADÉMIQUE")
-            result = exam_agent.invoke({
-                "mode": "solve",
-                "enonce_paths": path_enonces,
-                "copie_paths": []
-            })
-            return {"status": "success", "mode": "solve", "solution": result.get("solution")}
+        # 3. AGENT avec LOG DE STRUCTURE
+        print(f"--- [STEP 2: AGENT INVOKE] ---")
+        inputs = {"raw_text": raw_text}
+        result = exam_agent.invoke(inputs)
+        
+        # LOG CRITIQUE : Affiche la structure exacte reçue de LangGraph
+        print(f"Structure du dictionnaire reçu : {result.keys()}")
+        print(f"Contenu complet du résultat : {result}")
 
-        else:
-            # --- MODE CORRECTION ---
-            print("🎓 MODE : AUTO-GRADER")
-            path_copies = []
-            for file in copie:
-                p = save_file(file)
-                path_copies.append(p)
-                paths_to_clean.append(p)
+        # Extraction sécurisée : On teste plusieurs clés au cas où
+        solution = result.get("solution") or result.get("solver", {}).get("solution")
+        
+        if not solution:
+            print("❌ Erreur: L'agent a répondu mais la clé 'solution' est introuvable.")
+            solution = "L'IA a traité la demande mais n'a pas pu formater la réponse."
 
-            result = exam_agent.invoke({
-                "mode": "grade",
-                "enonce_paths": path_enonces,
-                "copie_paths": path_copies
-            })
-            return {"status": "success", "mode": "grade", "rapport": result.get("rapport_correction")}
+        return {
+            "status": "success",
+            "ocr_extracted": raw_text,
+            "solution": solution
+        }
 
     except Exception as e:
-        print(f"❌ ERREUR SYSTÈME: {str(e)}")
+        print(f"❌ ERREUR CRITIQUE : {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     
     finally:
-        # Nettoyage des fichiers temporaires (Important pour ne pas saturer le disque)
-        for p in paths_to_clean:
-            if os.path.exists(p):
-                try: os.remove(p)
-                except: pass
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 if __name__ == "__main__":
-    print("--- NEXUS ENGINE V3.0 ONLINE ---")
+
     uvicorn.run(app, host="127.0.0.1", port=8001)
