@@ -5,19 +5,19 @@ from pydantic import BaseModel
 from PIL import Image
 import pytesseract
 
-# --- CONFIGURATION TESSERACT (TRÈS IMPORTANT SUR WINDOWS) ---
-# Si Tesseract n'est pas dans les variables d'environnement de votre PC,
-# décommentez la ligne ci-dessous et mettez le bon chemin :
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# --- CONFIGURATION TESSERACT (STRATÉGIQUE POUR WINDOWS) ---
+# On pointe précisément vers l'exécutable dans votre dossier d'installation
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 app = FastAPI(title="Nexus Vision - MCP Server")
 
 class OCRRequest(BaseModel):
+    """Structure de la requête envoyée par l'agent LangGraph."""
     arguments: dict
 
 @app.post("/tools/vision_ocr_tool")
 async def vision_ocr_tool(request: OCRRequest):
-    # Récupération du chemin envoyé par agent.py
+    # Récupération du chemin de l'image
     image_path = request.arguments.get("image_path")
     
     if not image_path:
@@ -25,37 +25,44 @@ async def vision_ocr_tool(request: OCRRequest):
         
     if not os.path.exists(image_path):
         print(f"❌ [MCP VISION] Erreur : Fichier introuvable -> {image_path}")
-        return {"content": ""} # Retourne vide pour que l'agent signale l'erreur proprement
+        return {"content": "[ERREUR: Fichier image introuvable sur le serveur]"}
         
     file_name = os.path.basename(image_path)
-    print(f"--- [MCP VISION] Extraction en cours : {file_name} ---")
+    print(f"--- [MCP VISION] Analyse en cours : {file_name} ---")
     
     try:
-        # 1. Ouverture de l'image
+        # 1. Ouverture de l'image avec PIL
         img = Image.open(image_path)
         
-        # 2. Extraction du texte (lang='fra+eng' pour le vocabulaire technique/mathématique)
-        # Assurez-vous d'avoir téléchargé les données de langue pour Tesseract
+        # 2. Extraction du texte via Tesseract
+        # On utilise fra+eng pour supporter le français et les termes techniques anglais
+        # Si vous avez une erreur de 'tessdata', remplacez par : lang='eng'
         extracted_text = pytesseract.image_to_string(img, lang='fra+eng')
         
-        # 3. Nettoyage de base pour éviter d'envoyer des chaînes vides illisibles
+        # 3. Nettoyage du résultat
         cleaned_text = extracted_text.strip()
         
         if not cleaned_text:
-            print(f"⚠️ [MCP VISION] Attention : Aucun texte détecté sur {file_name}")
-            return {"content": "[OCR: L'image semble vide ou illisible]"}
+            print(f"⚠️ [MCP VISION] Aucun texte détecté sur {file_name}")
+            return {"content": "[OCR: L'image est illisible ou ne contient pas de texte clair]"}
             
         print(f"✔ [MCP VISION] Succès : {len(cleaned_text)} caractères extraits.")
+        
+        # On renvoie le texte brut pour que l'agent puisse l'analyser
         return {"content": cleaned_text}
         
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ [MCP VISION] Crash sur {file_name} : {error_msg}")
+        print(f"❌ [MCP VISION] Échec critique sur {file_name} : {error_msg}")
+        # On renvoie l'erreur explicitement pour éviter que l'IA n'invente une réponse
         return {"content": f"[Erreur interne OCR : {error_msg}]"}
 
 if __name__ == "__main__":
-    print("\n" + "="*50)
-    print(" 👁️  NEXUS VISION CORE ONLINE (Tesseract OCR) ")
-    print(" 📡 Port d'écoute : 8002")
-    print("="*50 + "\n")
+    print("\n" + "="*60)
+    print(" 👁️  NEXUS VISION CORE V3.0 ONLINE (Tesseract Engine)")
+    print(f" 📂 Path: C:\\Program Files\\Tesseract-OCR")
+    print(" 📡 Listening on: http://127.0.0.1:8002")
+    print("="*60 + "\n")
+    
+    # Lancement du serveur sur le port 8002
     uvicorn.run(app, host="127.0.0.1", port=8002)
