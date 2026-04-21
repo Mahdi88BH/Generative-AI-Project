@@ -83,16 +83,20 @@ def solver_node(state: AgentState):
     return {"solution": res.content}
 
 def grader_node(state: AgentState):
-    """Nœud Professeur : Corrige la copie par rapport au barème et au corrigé."""
-    print("--- [AGENT] Évaluation de la copie étudiant ---")
+    print("--- [AGENT] Évaluation Académique Multidisciplinaire ---")
     prompt = (
-        "Tu es un professeur rigoureux. Compare la COPIE ÉTUDIANT au CORRIGÉ TYPE en respectant l'ÉNONCÉ et son barème.\n\n"
-        f"1. ÉNONCÉ & BARÈME : {state['enonce_text']}\n"
-        f"2. CORRIGÉ DE RÉFÉRENCE : {state['corrige_text']}\n"
-        f"3. COPIE ÉTUDIANT : {state['copie_text']}\n\n"
-        "MISSION : Produis un rapport de correction Markdown élégant. "
-        "Pour chaque question : Note attribuée, points retirés, et explication pédagogique. "
-        "Termine par la NOTE TOTALE de l'étudiant."
+        "Tu es un Professeur Universitaire expert dans la discipline concernée par l'épreuve "
+        "(Droit, Mathématiques, Philosophie, Sciences, etc.).\n\n"
+        f"--- ÉPREUVE (ÉNONCÉ) ---\n{state['enonce_text']}\n\n"
+        f"--- COPIE DE L'ÉTUDIANT ---\n{state['copie_text']}\n\n"
+        "MISSION :\n"
+        "1. Analyse l'épreuve et identifie les attentes académiques.\n"
+        "2. Évalue la copie de l'étudiant avec rigueur et objectivité.\n"
+        "3. Produis un rapport structuré en Markdown :\n"
+        "   - Analyse de la pertinence des réponses.\n"
+        "   - Identification des erreurs ou lacunes.\n"
+        "   - Note détaillée par question et Note Globale sur 20.\n"
+        "   - Conseil pédagogique pour l'étudiant."
     )
     res = llm.invoke(prompt)
     return {"rapport_correction": res.content}
