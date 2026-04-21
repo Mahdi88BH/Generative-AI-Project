@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 
+load_dotenv()
 # --- CONFIGURATION DE L'ÉTAT ---
 class AgentState(TypedDict):
     image_path: str   # Chemin de l'image reçu du dossier temp_exams
