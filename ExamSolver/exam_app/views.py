@@ -37,57 +37,64 @@ def logout_view(request):
     logout(request)
     return redirect('index')
 
-# --- LOGIQUE D'ANALYSE (SYNERGIE IMAGE + TEXTE) ---
+# --- LOGIQUE D'ANALYSE & CHAT INTERACTIF ---
 
 @login_required(login_url='login')
-def upload_view(request):
+def upload_view(request, pk=None):
     """
-    Vue principale : Envoie l'image ET le contexte utilisateur à FastAPI.
+    Vue hybride : Gère le premier upload ET les interactions de chat suivantes.
     """
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     
-    if request.method == "POST" and request.FILES.get("exam_image"):
-        uploaded_file = request.FILES["exam_image"]
-        # Récupération du message de contexte saisi par l'utilisateur
-        user_message = request.POST.get("user_message", "") 
+    # Si un PK est fourni, on récupère l'examen pour continuer la discussion
+    exam = get_object_or_404(Exam, pk=pk, user=request.user) if pk else None
+
+    if request.method == "POST":
+        user_message = request.POST.get("user_message", "")
+        uploaded_file = request.FILES.get("exam_image")
+
+        # 1. CAS : NOUVEL EXAMEN (Upload d'image)
+        if uploaded_file:
+            exam = Exam.objects.create(
+                image=uploaded_file, 
+                user=request.user, 
+                status="Processing"
+            )
+            data_payload = {"user_context": user_message}
+            files = {'file': (exam.image.name, exam.image.open('rb'), 'image/jpeg')}
         
-        # 1. Sauvegarde en DB (On stocke aussi le prompt utilisateur pour l'historique)
-        exam = Exam.objects.create(
-            image=uploaded_file, 
-            user=request.user, 
-            status="Processing"
-        )
-        
+        # 2. CAS : INTERACTION CHAT (Modification d'un examen existant)
+        elif exam:
+            exam.status = "Processing"
+            exam.save()
+            # On envoie la solution actuelle pour que l'agent sache quoi modifier
+            data_payload = {
+                "user_context": user_message,
+                "existing_solution": exam.result_text 
+            }
+            files = None # Pas d'image à renvoyer, l'agent utilise la mémoire
+
+        else:
+            return redirect('upload')
+
+        # --- APPEL AU MOTEUR IA ---
         try:
-            # 2. PRÉPARATION DE L'APPEL FASTAPI
             url_ai_engine = "http://127.0.0.1:8001/api/v1/solve"
             
-            # Données textuelles (contexte)
-            data_payload = {"user_context": user_message}
-            
-            with exam.image.open('rb') as f:
-                files = {'file': (exam.image.name, f, 'image/jpeg')}
-                
-                # Envoi multipart : files pour l'image, data pour le texte
-                response = requests.post(
-                    url_ai_engine, 
-                    files=files, 
-                    data=data_payload, 
-                    timeout=90
-                )
-            
-            # 3. RÉCUPÉRATION DU RÉSULTAT
+            # Si on a un fichier, on fait un POST multipart, sinon un POST simple
+            if files:
+                response = requests.post(url_ai_engine, files=files, data=data_payload, timeout=90)
+            else:
+                response = requests.post(url_ai_engine, data=data_payload, timeout=90)
+
             if response.status_code == 200:
                 data = response.json()
-                exam.result_text = data.get("solution", "Aucune réponse générée.")
+                exam.result_text = data.get("solution", "Erreur de génération.")
                 exam.status = "Completed"
             else:
                 exam.status = "Error"
                 exam.result_text = f"Erreur Moteur IA (Code {response.status_code})"
                 
-        except requests.exceptions.ConnectionError:
-            exam.status = "Error"
-            exam.result_text = "Le service IA (Port 8001) est hors ligne."
         except Exception as e:
             exam.status = "Error"
             exam.result_text = f"Erreur système : {str(e)}"
@@ -95,15 +102,14 @@ def upload_view(request):
         exam.save()
         return redirect('exam_detail', pk=exam.pk)
     
-    return render(request, 'upload.html', {'exam_history': history})
+    return render(request, 'upload.html', {'exam': exam, 'exam_history': history})
 
 # --- GESTION DE L'HISTORIQUE ---
 
 @login_required(login_url='login')
 def exam_detail_view(request, pk):
-    exam = get_object_or_404(Exam, pk=pk, user=request.user)
-    history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
-    return render(request, 'upload.html', {'exam': exam, 'exam_history': history})
+    # On redirige vers upload_view avec le PK pour activer le mode "Chat"
+    return upload_view(request, pk=pk)
 
 @login_required(login_url='login')
 def delete_exam_view(request, pk):
