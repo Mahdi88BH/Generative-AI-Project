@@ -178,19 +178,3 @@ Avant le lancement de l'écosystème, la configuration des variables de sécurit
 <i>Développé avec rigueur pour l'excellence académique.</i></td>
 </tr>
 </table>
-## 📂 3. Structure du Projet (Modular SoC)
-Le projet suit le paradigme de **Separation of Concerns (SoC)** avec des services totalement découplés :
-
-```text
-📦 Nexus-AI
- ┣ 📂 ai_engine              # Cœur logique et Intelligence Artificielle
- ┃ ┣ 📜 agent.py             # Orchestration LangGraph & Définition des nœuds
- ┃ ┣ 📜 main.py              # Gateway FastAPI & Gestion de la concurrence
- ┃ ┣ 📜 mcp_server.py        # Micro-service d'outils Vision (Transport SSE)
- ┃ ┗ 📜 ocr_engine.py        # Pipeline de Computer Vision (OpenCV/OCR)
- ┣ 📂 nexus_web              # Couche d'interface utilisateur (UX Layer)
- ┃ ┣ 📂 templates            # Interfaces réactives (Glassmorphism UI)
- ┃ ┗ 📜 manage.py            # Orchestrateur du serveur Django
- ┣ 📜 requirements.txt       # Dépendances multi-services
- ┗ 📜 .env                   # Configuration des variables d'environnement
- 
