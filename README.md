@@ -170,7 +170,7 @@ TESSERACT_PATH=C:/Program Files/Tesseract-OCR/tesseract.exe</code></pre>
 </div>
 
 <footer>
-    Nexus AI - Projet de Master 2 Vision par Ordinateur & Intelligence Artificielle - 2024
+    Nexus AI - Projet de Master 2 Vision par Ordinateur & Intelligence Artificielle 
 </footer>
 
 </body>
