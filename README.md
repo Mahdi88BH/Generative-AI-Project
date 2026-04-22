@@ -194,5 +194,3 @@ Le projet suit le paradigme de **Separation of Concerns (SoC)** avec des service
  ┣ 📜 requirements.txt       # Dépendances multi-services
  ┗ 📜 .env                   # Configuration des variables d'environnement
  
- 🧠 4. Workflow de l'Agent (Chain-of-Thought)
-Le flux de travail est orchestré par un graphe d'états garantissant la cohérence des données. L'IA suit ce cycle cognitif pour chaque requête :
