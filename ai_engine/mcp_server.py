@@ -50,7 +50,7 @@ if __name__ == "__main__":
   
     print(" NEXUS MCP SERVER : MODE RÉSEAU ACTIVÉ ")
     print(" Protocole : SSE (HTTP) ")
-    print(" Port : 8000 ")
+    print(" Port : 8010 ")
  
   
-    mcp.run(transport="sse")
+    mcp.run(transport="sse", port=8010)
