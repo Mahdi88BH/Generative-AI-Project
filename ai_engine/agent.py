@@ -1,14 +1,15 @@
 import os
-from typing import TypedDict
+from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 1. ÉTAT DE L'AGENT ---
+# --- 1. ÉTAT DE L'AGENT MIS À JOUR ---
 class AgentState(TypedDict):
-    raw_text: str           
+    raw_text: str           # Texte de l'énoncé (OCR/Direct)
+    student_text: str       # Texte de la copie élève (Optionnel)
     user_context: str       
     subject_inferred: str   
     cleaned_text: str       
@@ -24,8 +25,6 @@ llm = ChatGroq(
 # --- 3. NŒUD 1 : L'ANALYSTE ---
 def analyze_and_clean_node(state: AgentState):
     print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive ---")
-    
-    # On récupère le texte brut ou on utilise le contexte si l'OCR a échoué
     raw = state.get('raw_text', '')
     context = state.get('user_context', 'N/A')
 
@@ -33,16 +32,16 @@ def analyze_and_clean_node(state: AgentState):
 CONTEXTE UTILISATEUR : {context}
 
 MISSION :
-1. Analyse le texte fourni et identifie le domaine précis.
+1. Identifie le domaine précis de l'examen.
 2. Reconstruis l'énoncé de manière fidèle et lisible avec des emojis (📝, 🔢).
-3. Si le texte semble être du code ou des maths, préserve la syntaxe.
+3. Si des barèmes ([2 pts], etc.) sont visibles, assure-toi de les inclure clairement.
 
 FORMAT DE RÉPONSE :
 [DOMAINE] : (Matière)
 [ÉNONCÉ] :
 (Texte corrigé)
 
-CONTENU À TRAITER :
+CONTENU :
 {raw}
 """
     response = llm.invoke(prompt)
@@ -55,16 +54,42 @@ CONTENU À TRAITER :
         domain = parts[0].replace("[DOMAINE]", "").replace(":", "").strip()
         cleaned = parts[1].strip()
 
-    # Crucial : On renvoie subject et cleaned pour alimenter le solver
     return {"subject_inferred": domain, "cleaned_text": cleaned}
 
-# --- 4. NŒUD 2 : LE MAÎTRE ---
+# --- 4. NŒUD 2 : LE MAÎTRE (LOGIQUE DOUBLE : RÉSOLUTION OU NOTATION) ---
 def solve_exam_node(state: AgentState):
     subject = state.get('subject_inferred', 'Général')
-    print(f"--- [NEXUS CORE] Phase 2 : Résolution ({subject}) ---")
+    enonce = state.get('cleaned_text', 'N/A')
+    copie_eleve = state.get('student_text', '')
+
+    # --- CAS A : MODE PROFESSEUR / CORRECTEUR (Si une copie est fournie) ---
+    if copie_eleve and len(copie_eleve.strip()) > 10:
+        print(f"--- [NEXUS CORE] Phase 2 : Évaluation & Notation ---")
+        prompt = fr"""Tu es un professeur expert en {subject}. 
+Compare la COPIE DE L'ÉLÈVE par rapport à l'ÉNONCÉ.
+
+MISSION :
+1. Analyse chaque réponse de l'élève par rapport à l'énoncé.
+2. Attribue une note pour chaque question en suivant le barème de l'énoncé (sinon répartis 20 points équitablement).
+3. Justifie chaque point retiré et propose la correction adéquate.
+4. Calcule la NOTE FINALE sur 20.
+
+CONSIGNES :
+- Utilise LaTeX \( ... \) et \[ ... \] pour les calculs.
+- Utilise Markdown et Emojis (🎓, 🎯, ❌, ✅).
+
+ÉNONCÉ :
+{enonce}
+
+COPIE DE L'ÉLÈVE :
+{copie_eleve}
+"""
     
-    prompt = fr"""Tu es un professeur expert en {subject}.
-Résous cet examen de manière magistrale.
+    # --- CAS B : MODE RÉSOLUTION CLASSIQUE (Seul l'énoncé est fourni) ---
+    else:
+        print(f"--- [NEXUS CORE] Phase 2 : Résolution Magistrale ---")
+        prompt = fr"""Tu es un professeur expert en {subject}.
+Résous cet examen de manière complète et pédagogique.
 
 CONSIGNES :
 - Pédagogie avec emojis (✅, ⚙️, 📚, 🚀).
@@ -72,33 +97,29 @@ CONSIGNES :
 - STRUCTURE : Markdown clair avec titres.
 
 ÉNONCÉ :
-{state.get('cleaned_text', 'Énoncé non disponible.')}
+{enonce}
 """
+
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 5. NŒUD 3 : LE CHAT (FEEDBACK INTERACTIF) ---
+# --- 5. NŒUD 3 : LE CHAT ---
 def chat_feedback_node(state: AgentState):
     print(f"--- [NEXUS CORE] Phase 3 : Interaction Chat ---")
-    
-    # On récupère tout le contexte précédent pour une modification intelligente
-    prompt = fr"""Tu es le professeur expert. L'utilisateur souhaite modifier ta correction précédente.
+    prompt = fr"""Tu es le professeur expert. L'utilisateur souhaite modifier ta dernière réponse (Correction ou Note).
 
-DEMANDE : {state.get('user_context', 'Révision générale')}
-
-CORRECTION PRÉCÉDENTE : 
-{state.get('solution', 'N/A')}
+DEMANDE : {state.get('user_context', 'Révision')}
+RÉPONSE PRÉCÉDENTE : {state.get('solution', 'N/A')}
 
 MISSION :
-- Applique les changements demandés tout en gardant le formatage LaTeX et Markdown.
-- Renvoie la VERSION COMPLÈTE mise à jour.
+- Mets à jour la réponse en fonction de la demande.
+- Préserve le formatage LaTeX et le style pédagogique.
 """
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
 # --- 6. LOGIQUE DE ROUTAGE ---
 def route_request(state: AgentState):
-    # Logique : Si solution existe -> Discussion. Sinon -> Analyse.
     if state.get("solution") and len(state["solution"]) > 20:
         return "chat_feedback"
     return "analyzer"
