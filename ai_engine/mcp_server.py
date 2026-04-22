@@ -23,10 +23,10 @@ def read_document(file_path: str) -> str:
 
 if __name__ == "__main__":
    
-    print("\n" + "⚡" * 15)
+ 
     print(" NEXUS MCP SERVER : READY ")
     print(" Port : 8010 | Transport : SSE ")
-    print("⚡" * 15 + "\n")
+   
 
     
     import sys
