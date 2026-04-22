@@ -3,42 +3,32 @@ from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from langchain_core.tools import Tool
-from ocr_engine import extract_text_from_exam 
+from ocr_engine import extract_text_from_exam # Import pour l'outil
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # --- 1. ÉTAT DE L'AGENT ---
 class AgentState(TypedDict):
-    raw_text: str           # Chemin du fichier Énoncé ou "CHAT_MODE"
-    student_text: str       # Chemin du fichier Copie ou ""
+    raw_text: str           # Reçoit le chemin du fichier (Path) ou "CHAT_MODE"
+    student_text: str       # Reçoit le chemin du fichier (Path) ou ""
     user_context: str       
     subject_inferred: str   
     cleaned_text: str       
     solution: str           
 
-# --- 2. CONFIGURATION DE L'OUTIL MCP ---
+# --- 2. CONFIGURATION DE L'OUTIL MCP (Simulation Client) ---
 def ocr_tool_func(path: str):
-    """
-    Simule l'appel au serveur MCP distant (Port 8010).
-    Cette fonction encapsule l'OCR comme un service externe.
-    """
+    """Fonction appelée par l'outil read_document"""
     if os.path.exists(path):
-        # Indices visuels pour prouver le fonctionnement de l'architecture MCP
-        print(f"📡 [AGENT -> MCP] Requête envoyée au serveur Vision (127.0.0.1:8010)")
-        
-        # Exécution du moteur OCR
-        result = extract_text_from_exam(path)
-        
-        print(f"✅ [MCP -> AGENT] Réponse reçue : Extraction terminée.")
-        return result
+        return extract_text_from_exam(path)
     return path
 
-# Définition de l'outil pour le LLM
+# Définition de l'outil pour que le LLM sache qu'il peut l'utiliser
 ocr_tool = Tool(
     name="read_document",
     func=ocr_tool_func,
-    description="Extrait le texte d'un document (Image/PDF) à partir de son chemin d'accès local."
+    description="Extrait le texte d'un document (Image/PDF) à partir de son chemin d'accès."
 )
 
 # --- 3. INITIALISATION GROQ ---
@@ -47,18 +37,22 @@ llm = ChatGroq(
     temperature=0.1, 
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
-# Liaison de l'outil au modèle pour permettre le 'Tool Use'
+# On lie l'outil au modèle
 llm_with_tools = llm.bind_tools([ocr_tool])
 
-# --- 4. NŒUD 1 : L'ANALYSTE (Extraction & Nettoyage) ---
+# --- 4. NŒUD 1 : L'ANALYSTE (Utilise l'outil MCP) ---
 def analyze_and_clean_node(state: AgentState):
-    print("\n--- [NEXUS CORE] Phase 1 : Analyse Cognitive & MCP Tool ---")
+    print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive & MCP Tool ---")
     
+    # Récupération des chemins
     path_enonce = state.get('raw_text', '')
     path_student = state.get('student_text', '')
     
-    # Appel de l'outil pour transformer les chemins en texte
+    # --- LOGIQUE MCP : On extrait le texte si ce sont des chemins ---
+    # Extraction Énoncé
     enonce_raw = ocr_tool.run(path_enonce) if os.path.exists(path_enonce) else path_enonce
+    
+    # Extraction Copie Élève (si présente)
     student_raw = ocr_tool.run(path_student) if (path_student and os.path.exists(path_student)) else ""
 
     context = state.get('user_context', 'N/A')
@@ -87,13 +81,14 @@ TEXTE BRUT :
         domain = parts[0].replace("[DOMAINE]", "").replace(":", "").strip()
         cleaned = parts[1].strip()
 
+    # On met à jour l'état avec le VRAI texte extrait pour les nœuds suivants
     return {
         "subject_inferred": domain, 
         "cleaned_text": cleaned, 
-        "student_text": student_raw
+        "student_text": student_raw  # On remplace le chemin par le texte extrait
     }
 
-# --- 5. NŒUD 2 : LE MAÎTRE (Résolution ou Correction) ---
+# --- 5. NŒUD 2 : LE MAÎTRE (Notation ou Résolution) ---
 def solve_exam_node(state: AgentState):
     subject = state.get('subject_inferred', 'Général')
     enonce = state.get('cleaned_text', 'N/A')
@@ -106,8 +101,8 @@ Compare la COPIE DE L'ÉLÈVE par rapport à l'ÉNONCÉ.
 
 MISSION :
 1. Note sur 20 selon le barème ou équitablement.
-2. Justifie chaque point et propose la correction adéquate.
-3. Utilise LaTeX \( ... \) et \[ ... \] pour les calculs.
+2. Justifie et corrige les erreurs.
+3. Utilise LaTeX \( ... \).
 
 ÉNONCÉ : {enonce}
 COPIE ÉLÈVE : {copie_eleve}
@@ -115,14 +110,13 @@ COPIE ÉLÈVE : {copie_eleve}
     else:
         print(f"--- [NEXUS CORE] Phase 2 : Résolution Magistrale ---")
         prompt = fr"""Tu es un professeur expert en {subject}. Résous cet examen.
-Utilise LaTeX et sois très pédagogique.
 ÉNONCÉ : {enonce}
 """
 
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 6. NŒUD 3 : LE CHAT (Interaction continue) ---
+# --- 6. NŒUD 3 : LE CHAT ---
 def chat_feedback_node(state: AgentState):
     print(f"--- [NEXUS CORE] Phase 3 : Interaction Chat ---")
     prompt = fr"""Tu es le professeur expert. Modifie la réponse selon la demande.
@@ -132,7 +126,7 @@ RÉPONSE PRÉCÉDENTE : {state.get('solution', 'N/A')}
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 7. ROUTAGE ET GRAPH ---
+# --- 7. ROUTAGE ET CONSTRUCTION ---
 def route_request(state: AgentState):
     if state.get("solution") and len(state["solution"]) > 20:
         return "chat_feedback"
