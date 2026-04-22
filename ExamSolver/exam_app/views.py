@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from .forms import ModernRegisterForm
 from .models import Exam
 
-# --- NAVIGATION & AUTH ---
+# --- NAVIGATION & AUTH (Inchangé) ---
 def index_view(request): return render(request, "index.html")
 
 def register_view(request):
@@ -34,44 +34,44 @@ def logout_view(request):
 
 @login_required(login_url='login')
 def upload_view(request, pk=None):
-    """
-    Vue centrale gérant le flux :
-    1. Scan Initial (Image/PDF + Message)
-    2. Discussion de correction (Message seul)
-    """
     history = Exam.objects.filter(user=request.user).order_by('-uploaded_at')
     exam = get_object_or_404(Exam, pk=pk, user=request.user) if pk else None
 
     if request.method == "POST":
         user_message = request.POST.get("user_message", "")
-        uploaded_file = request.FILES.get("exam_image")
+        uploaded_file = request.FILES.get("exam_image")      # Énoncé
+        student_copy = request.FILES.get("student_copy")     # Copie élève (NOUVEAU)
 
-        # CAS 1 : NOUVEL EXAMEN
+        files = {}
+        data_payload = {"user_context": user_message}
+
+        # CAS 1 : NOUVEL ENVOI (Énoncé ou Énoncé + Copie)
         if uploaded_file:
             exam = Exam.objects.create(
                 image=uploaded_file, user=request.user, status="Processing"
             )
-            data_payload = {"user_context": user_message}
-            files = {'file': (exam.image.name, exam.image.open('rb'))}
+            # Ajout de l'énoncé aux fichiers pour FastAPI
+            files['file'] = (exam.image.name, exam.image.open('rb'))
+            
+            # Ajout de la copie élève si présente
+            if student_copy:
+                files['student_copy'] = (student_copy.name, student_copy.open('rb'))
         
         # CAS 2 : CHAT SUR EXAMEN EXISTANT
         elif exam:
             exam.status = "Processing"; exam.save()
-            data_payload = {
-                "user_context": user_message,
-                "existing_solution": exam.result_text # Mémoire pour l'IA
-            }
-            files = None # Pas de nouvelle image
+            data_payload["existing_solution"] = exam.result_text
+            files = None 
 
-        else: return redirect('upload')
+        else: 
+            return redirect('upload')
 
-        # Appel FastAPI
+        # --- APPEL FASTAPI ---
         try:
             url_ai_engine = "http://127.0.0.1:8001/api/v1/solve"
-            if files:
-                response = requests.post(url_ai_engine, files=files, data=data_payload, timeout=90)
-            else:
-                response = requests.post(url_ai_engine, data=data_payload, timeout=90)
+            
+            # Utilisation de files=files (qui peut contenir 0, 1 ou 2 fichiers)
+            response = requests.post(url_ai_engine, files=files, data=data_payload, timeout=120)
 
             if response.status_code == 200:
                 data = response.json()
@@ -92,7 +92,6 @@ def upload_view(request, pk=None):
 
 @login_required(login_url='login')
 def exam_detail_view(request, pk):
-    # Redirige vers la vue upload avec le contexte de l'examen chargé
     return upload_view(request, pk=pk)
 
 @login_required(login_url='login')
