@@ -56,7 +56,6 @@
 ## 📂 3. Structure du Projet (Modular SoC)
 Le projet suit le paradigme de **Separation of Concerns (SoC)** avec des services totalement découplés :
 
-```text
 📦 Nexus-AI
  ┣ 📂 ai_engine              # Cœur logique et Intelligence Artificielle
  ┃ ┣ 📜 agent.py             # Orchestration LangGraph & Définition des nœuds
@@ -71,6 +70,7 @@ Le projet suit le paradigme de **Separation of Concerns (SoC)** avec des service
  
  🧠 4. Workflow de l'Agent (Chain-of-Thought)
 Le flux de travail est orchestré par un graphe d'états garantissant la cohérence des données. L'IA suit ce cycle cognitif pour chaque requête :
+---
 
 <table width="100%">
 <tr>
