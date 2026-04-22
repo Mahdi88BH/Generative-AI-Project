@@ -2,47 +2,75 @@ import os
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
+from langchain_core.tools import Tool 
+from ocr_engine import extract_text_from_exam 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 1. ÉTAT DE L'AGENT MIS À JOUR ---
+# --- 1. ÉTAT DE L'AGENT ---
 class AgentState(TypedDict):
-    raw_text: str           # Texte de l'énoncé (OCR/Direct)
-    student_text: str       # Texte de la copie élève (Optionnel)
+    raw_text: str           
+    student_text: str       
     user_context: str       
     subject_inferred: str   
     cleaned_text: str       
     solution: str           
 
-# --- 2. INITIALISATION GROQ ---
+# --- 2. CONFIGURATION DE L'OUTIL ---
+def ocr_tool_func(path: str):
+    if path and os.path.exists(path):
+        print(f"📡 [AGENT TOOL] Analyse Vision via tool 'read_document' : {os.path.basename(path)}")
+        return extract_text_from_exam(path)
+    return path
+
+ocr_tool = Tool(
+    name="read_document",
+    func=ocr_tool_func,
+    description="Extrait le texte d'un document académique (PDF ou Image) à partir d'un chemin local."
+)
+
+# --- 3. INITIALISATION GROQ (Température basse pour la précision technique) ---
 llm = ChatGroq(
     model_name="llama-3.3-70b-versatile",
     temperature=0.1, 
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# --- 3. NŒUD 1 : L'ANALYSTE ---
+# --- 4. NŒUD 1 : L'ANALYSTE (Reconstruction de Données) ---
 def analyze_and_clean_node(state: AgentState):
-    print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive ---")
-    raw = state.get('raw_text', '')
+    print("\n--- [NEXUS CORE] Phase 1 : Reconstruction Cognitive Haute Précision ---")
+    
+    path_enonce = state.get('raw_text', '')
+    path_student = state.get('student_text', '')
+    
+    enonce_raw = ocr_tool.run(path_enonce)
+    student_raw = ocr_tool.run(path_student) if path_student else ""
+
     context = state.get('user_context', 'N/A')
 
-    prompt = fr"""Tu es une IA experte en reconstruction de documents académiques.
-CONTEXTE UTILISATEUR : {context}
+    # PROMPT ULTRA-PUISSANT : RECONSTRUCTION
+    prompt = fr"""
+AGIS EN TANT QU'EXPERT EN NUMÉRISATION ACADÉMIQUE ET RECONSTRUCTION DE DONNÉES.
+CONTEXTE : {context}
 
-MISSION :
-1. Identifie le domaine précis de l'examen.
-2. Reconstruis l'énoncé de manière fidèle et lisible avec des emojis (📝, 🔢).
-3. Si des barèmes ([2 pts], etc.) sont visibles, assure-toi de les inclure clairement.
+MISSION : Transformer le flux OCR brut en un énoncé d'examen parfaitement structuré.
 
-FORMAT DE RÉPONSE :
-[DOMAINE] : (Matière)
+DIRECTIVES DE QUALITÉ :
+1. CORRECTION TECHNIQUE : Rectifie les erreurs d'OCR sur les symboles scientifiques (ex: 'm/s2' -> 'm/s²').
+2. STRUCTURE : Hiérarchise avec Markdown (#, ##). Inclus les barèmes **[pts]** s'ils existent.
+3. MATHS : Formate TOUT en LaTeX strict : \( ... \) pour le texte et \[ ... \] pour les blocs isolés.
+
+FORMAT DE SORTIE IMPÉRATIF :
+[DOMAINE] : (Matière précise)
 [ÉNONCÉ] :
-(Texte corrigé)
+# 📝 (Titre reconstruit)
+(Description fluide du sujet)
+---
+(Questions numérotées)
 
-CONTENU :
-{raw}
+CONTENU OCR :
+{enonce_raw}
 """
     response = llm.invoke(prompt)
     content = response.content
@@ -54,47 +82,53 @@ CONTENU :
         domain = parts[0].replace("[DOMAINE]", "").replace(":", "").strip()
         cleaned = parts[1].strip()
 
-    return {"subject_inferred": domain, "cleaned_text": cleaned}
+    return {
+        "subject_inferred": domain, 
+        "cleaned_text": cleaned, 
+        "student_text": student_raw
+    }
 
-# --- 4. NŒUD 2 : LE MAÎTRE (LOGIQUE DOUBLE : RÉSOLUTION OU NOTATION) ---
+# --- 5. NŒUD 2 : LE MAÎTRE (Résolution Magistrale ou Correction Chirurgicale) ---
 def solve_exam_node(state: AgentState):
     subject = state.get('subject_inferred', 'Général')
     enonce = state.get('cleaned_text', 'N/A')
     copie_eleve = state.get('student_text', '')
 
-    # --- CAS A : MODE PROFESSEUR / CORRECTEUR (Si une copie est fournie) ---
+    # --- CAS A : MODE CORRECTEUR DE CONCOURS (Notation) ---
     if copie_eleve and len(copie_eleve.strip()) > 10:
-        print(f"--- [NEXUS CORE] Phase 2 : Évaluation & Notation ---")
-        prompt = fr"""Tu es un professeur expert en {subject}. 
-Compare la COPIE DE L'ÉLÈVE par rapport à l'ÉNONCÉ.
+        print(f"--- [NEXUS CORE] Phase 2 : Évaluation Professeur (Mode Expert) ---")
+        prompt = fr"""
+AGIS EN TANT QUE CORRECTEUR OFFICIEL DE CONCOURS NATIONAL EN {subject}.
+MISSION : Évaluer la COPIE avec une rigueur absolue par rapport à l'ÉNONCÉ.
 
-MISSION :
-1. Analyse chaque réponse de l'élève par rapport à l'énoncé.
-2. Attribue une note pour chaque question en suivant le barème de l'énoncé (sinon répartis 20 points équitablement).
-3. Justifie chaque point retiré et propose la correction adéquate.
-4. Calcule la NOTE FINALE sur 20.
+PROTOCOLE D'ÉVALUATION :
+1. ANALYSE CRITIQUE : Vérifie les hypothèses, la justesse des calculs et la présence des unités.
+2. FEEDBACK STRUCTURÉ : Pour chaque question :
+   - ✅ Ce qui est acquis.
+   - ❌ Erreurs de raisonnement ou de calcul (avec explication).
+3. BILAN : Tableau synthétique (Points forts / Points à améliorer).
+4. VERDICT : Note finale sur 20 calculée selon le barème.
 
-CONSIGNES :
-- Utilise LaTeX \( ... \) et \[ ... \] pour les calculs.
-- Utilise Markdown et Emojis (🎓, 🎯, ❌, ✅).
+STYLE : LaTeX \( ... \) impératif pour les sciences. Emojis (🎓, 🎯, ✅, ❌).
 
 ÉNONCÉ :
 {enonce}
 
-COPIE DE L'ÉLÈVE :
+COPIE ÉLÈVE :
 {copie_eleve}
 """
     
-    # --- CAS B : MODE RÉSOLUTION CLASSIQUE (Seul l'énoncé est fourni) ---
+    # --- CAS B : MODE MAÎTRE DE CONFÉRENCE (Résolution) ---
     else:
         print(f"--- [NEXUS CORE] Phase 2 : Résolution Magistrale ---")
-        prompt = fr"""Tu es un professeur expert en {subject}.
-Résous cet examen de manière complète et pédagogique.
+        prompt = fr"""
+AGIS EN TANT QUE MAÎTRE DE CONFÉRENCE ÉMÉRITE EN {subject}.
+MISSION : Résoudre l'examen avec une clarté et une rigueur pédagogique exceptionnelle.
 
-CONSIGNES :
-- Pédagogie avec emojis (✅, ⚙️, 📚, 🚀).
-- MATHS : Utilise \( ... \) et \[ ... \].
-- STRUCTURE : Markdown clair avec titres.
+PROTOCOLE DE RÉSOLUTION :
+1. RAPPEL THÉORIQUE : Cite les lois utilisées (ex: "D'après la loi de...").
+2. DÉMONSTRATION : Résolution littérale d'abord, puis application numérique avec unités.
+3. VISUEL : Utilise Markdown pour la clarté. LaTeX \[ ... \] pour les formules clés.
 
 ÉNONCÉ :
 {enonce}
@@ -103,40 +137,34 @@ CONSIGNES :
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 5. NŒUD 3 : LE CHAT ---
+# --- 6. NŒUD 3 : LE CHAT (Affinement Interactif) ---
 def chat_feedback_node(state: AgentState):
-    print(f"--- [NEXUS CORE] Phase 3 : Interaction Chat ---")
-    prompt = fr"""Tu es le professeur expert. L'utilisateur souhaite modifier ta dernière réponse (Correction ou Note).
+    print(f"--- [NEXUS CORE] Phase 3 : Interaction Expert-User ---")
+    prompt = fr"""
+Tu es le Professeur Expert. L'utilisateur souhaite affiner ta réponse précédente.
 
 DEMANDE : {state.get('user_context', 'Révision')}
 RÉPONSE PRÉCÉDENTE : {state.get('solution', 'N/A')}
 
-MISSION :
-- Mets à jour la réponse en fonction de la demande.
-- Préserve le formatage LaTeX et le style pédagogique.
+MISSION : Ajuste ta réponse en maintenant la rigueur scientifique, le formatage LaTeX et la courtoisie pédagogique.
 """
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 6. LOGIQUE DE ROUTAGE ---
+# --- 7. ROUTAGE ET CONSTRUCTION ---
 def route_request(state: AgentState):
     if state.get("solution") and len(state["solution"]) > 20:
         return "chat_feedback"
     return "analyzer"
 
-# --- 7. CONSTRUCTION DU GRAPH ---
 workflow = StateGraph(AgentState)
-
 workflow.add_node("analyzer", analyze_and_clean_node)
 workflow.add_node("solver", solve_exam_node)
 workflow.add_node("chat_feedback", chat_feedback_node)
 
 workflow.set_conditional_entry_point(
     route_request,
-    {
-        "analyzer": "analyzer",
-        "chat_feedback": "chat_feedback"
-    }
+    {"analyzer": "analyzer", "chat_feedback": "chat_feedback"}
 )
 
 workflow.add_edge("analyzer", "solver")
