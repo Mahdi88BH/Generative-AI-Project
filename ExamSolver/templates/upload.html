@@ -454,28 +454,22 @@ function submitExam() {
         const btn = document.getElementById('sendBtn');
         const userMsgInput = document.getElementById('user_message');
         const uploadForm = document.getElementById('uploadForm');
-        const fileInput = document.getElementById('exam_image');
+        const enonce = document.getElementById('exam_image').files.length;
+        const copie = document.getElementById('student_copy').files.length;
 
-        // 1. Animation du bouton
         btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> CALCUL...';
         btn.disabled = true;
 
-        // 2. Gestion intelligente de la valeur par défaut
-        // Si l'utilisateur a mis un fichier mais n'a rien écrit, on met "Analyse standard"
-        // Mais s'il y a déjà un examen (mode chat) et qu'il écrit, on laisse son texte.
+        // Auto-contexte si vide
         if (userMsgInput.value.trim() === "") {
-            if (fileInput.files.length > 0) {
-                userMsgInput.value = "Analyse standard";
-            } else {
-                // Optionnel : si pas de fichier et pas de texte, on peut empêcher l'envoi
-                // userMsgInput.value = "Demande de précision"; 
+            if (enonce > 0 && copie > 0) {
+                userMsgInput.value = "Analyse comparative et notation de la copie sur 20.";
+            } else if (enonce > 0) {
+                userMsgInput.value = "Résolution complète de l'énoncé.";
             }
         }
 
-        // 3. Envoi après un léger délai pour l'effet visuel
-        setTimeout(() => {
-            uploadForm.submit();
-        }, 300);
+        setTimeout(() => { uploadForm.submit(); }, 300);
     }
 
     // --- DÉCLENCHEMENT DU RENDU MATHÉMATIQUE ---
