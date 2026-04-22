@@ -1,5 +1,5 @@
 import os
-from typing import TypedDict, Optional
+from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
@@ -8,38 +8,42 @@ load_dotenv()
 
 # --- 1. ÉTAT DE L'AGENT ---
 class AgentState(TypedDict):
-    raw_text: str           # Texte issu de l'OCR (Image ou PDF)
-    user_context: str       # Message actuel de l'utilisateur (Context ou Chat)
-    subject_inferred: str   # Domaine détecté (Maths, BI, etc.)
-    cleaned_text: str       # Énoncé reconstruit proprement
-    solution: str           # La dernière version de la correction générée
+    raw_text: str           
+    user_context: str       
+    subject_inferred: str   
+    cleaned_text: str       
+    solution: str           
 
-# --- 2. INITIALISATION DU MOTEUR GROQ ---
+# --- 2. INITIALISATION GROQ ---
 llm = ChatGroq(
     model_name="llama-3.3-70b-versatile",
-    temperature=0.1, # Précision maximale
+    temperature=0.1, 
     groq_api_key=os.getenv("GROQ_API_KEY")
 )
 
-# --- 3. NŒUD 1 : L'ANALYSTE (DÉTECTION & NETTOYAGE) ---
+# --- 3. NŒUD 1 : L'ANALYSTE ---
 def analyze_and_clean_node(state: AgentState):
-    print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive & Nettoyage ---")
+    print("--- [NEXUS CORE] Phase 1 : Analyse Cognitive ---")
     
-    prompt = f"""Tu es une IA experte en reconstruction de documents académiques.
-CONTEXTE UTILISATEUR : {state.get('user_context', 'N/A')}
+    # On récupère le texte brut ou on utilise le contexte si l'OCR a échoué
+    raw = state.get('raw_text', '')
+    context = state.get('user_context', 'N/A')
+
+    prompt = fr"""Tu es une IA experte en reconstruction de documents académiques.
+CONTEXTE UTILISATEUR : {context}
 
 MISSION :
-1. Analyse le texte OCR brut et identifie le domaine précis (ex: Informatique Décisionnelle, Algèbre, etc.).
-2. Utilise le contexte utilisateur pour corriger les erreurs de lecture de l'OCR.
-3. Reconstruis l'énoncé complet avec des emojis discrets pour la structure (📝, 🔢).
+1. Analyse le texte fourni et identifie le domaine précis.
+2. Reconstruis l'énoncé de manière fidèle et lisible avec des emojis (📝, 🔢).
+3. Si le texte semble être du code ou des maths, préserve la syntaxe.
 
-FORMAT DE RÉPONSE (OBLIGATOIRE) :
+FORMAT DE RÉPONSE :
 [DOMAINE] : (Matière)
 [ÉNONCÉ] :
 (Texte corrigé)
 
-TEXTE OCR BRUT :
-{state['raw_text']}
+CONTENU À TRAITER :
+{raw}
 """
     response = llm.invoke(prompt)
     content = response.content
@@ -51,65 +55,61 @@ TEXTE OCR BRUT :
         domain = parts[0].replace("[DOMAINE]", "").replace(":", "").strip()
         cleaned = parts[1].strip()
 
+    # Crucial : On renvoie subject et cleaned pour alimenter le solver
     return {"subject_inferred": domain, "cleaned_text": cleaned}
 
-# --- 4. NŒUD 2 : LE MAÎTRE (RÉSOLUTION INITIALE) ---
+# --- 4. NŒUD 2 : LE MAÎTRE ---
 def solve_exam_node(state: AgentState):
-    print(f"--- [NEXUS CORE] Phase 2 : Résolution Experte ({state['subject_inferred']}) ---")
+    subject = state.get('subject_inferred', 'Général')
+    print(f"--- [NEXUS CORE] Phase 2 : Résolution ({subject}) ---")
     
-    prompt = f"""Tu es un professeur expert en {state['subject_inferred']}.
+    prompt = fr"""Tu es un professeur expert en {subject}.
 Résous cet examen de manière magistrale.
 
 CONSIGNES :
-- Utilise des emojis pour la pédagogie (✅, ⚙️, 📚, 🚀).
-- Utilise impérativement Markdown (titres #, gras **).
-- MATHS : Utilise \( ... \) pour les formules en ligne et \[ ... \] pour les blocs.
-- Ne fais aucune introduction du type "Voici la solution".
+- Pédagogie avec emojis (✅, ⚙️, 📚, 🚀).
+- MATHS : Utilise \( ... \) et \[ ... \].
+- STRUCTURE : Markdown clair avec titres.
 
 ÉNONCÉ :
-{state['cleaned_text']}
+{state.get('cleaned_text', 'Énoncé non disponible.')}
 """
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 5. NŒUD 3 : LE CHAT (INTERACTION & FEEDBACK) ---
+# --- 5. NŒUD 3 : LE CHAT (FEEDBACK INTERACTIF) ---
 def chat_feedback_node(state: AgentState):
-    print(f"--- [NEXUS CORE] Phase 3 : Interaction Chat / Correction ---")
+    print(f"--- [NEXUS CORE] Phase 3 : Interaction Chat ---")
     
-    prompt = f"""Tu es le professeur expert. L'utilisateur souhaite modifier ou préciser la correction actuelle.
+    # On récupère tout le contexte précédent pour une modification intelligente
+    prompt = fr"""Tu es le professeur expert. L'utilisateur souhaite modifier ta correction précédente.
 
-ÉNONCÉ DE RÉFÉRENCE : 
-{state['cleaned_text']}
+DEMANDE : {state.get('user_context', 'Révision générale')}
 
-CORRECTION ACTUELLE : 
-{state['solution']}
-
-DEMANDE DE L'UTILISATEUR : 
-{state['user_context']}
+CORRECTION PRÉCÉDENTE : 
+{state.get('solution', 'N/A')}
 
 MISSION :
-- Modifie la correction selon les instructions précises de l'utilisateur.
-- Garde les Emojis, le Markdown et le formatage LaTeX (\(...\) et \[...\]).
-- Renvoie la NOUVELLE VERSION COMPLÈTE du corrigé.
+- Applique les changements demandés tout en gardant le formatage LaTeX et Markdown.
+- Renvoie la VERSION COMPLÈTE mise à jour.
 """
     response = llm.invoke(prompt)
     return {"solution": response.content}
 
-# --- 6. LOGIQUE DE ROUTAGE (DÉCISION) ---
+# --- 6. LOGIQUE DE ROUTAGE ---
 def route_request(state: AgentState):
-    # Si une solution existe déjà, on passe en mode discussion/correction
+    # Logique : Si solution existe -> Discussion. Sinon -> Analyse.
     if state.get("solution") and len(state["solution"]) > 20:
         return "chat_feedback"
     return "analyzer"
 
-# --- 7. CONSTRUCTION DU GRAPH (LANGGRAPH) ---
+# --- 7. CONSTRUCTION DU GRAPH ---
 workflow = StateGraph(AgentState)
 
 workflow.add_node("analyzer", analyze_and_clean_node)
 workflow.add_node("solver", solve_exam_node)
 workflow.add_node("chat_feedback", chat_feedback_node)
 
-# Point d'entrée intelligent
 workflow.set_conditional_entry_point(
     route_request,
     {

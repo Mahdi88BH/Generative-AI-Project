@@ -3,70 +3,87 @@ import shutil
 import os
 import uvicorn
 import time
+import asyncio
 from ocr_engine import extract_text_from_exam
 from agent import exam_agent
 
 app = FastAPI(title="Nexus Engine AI - Interactive Core")
 
 TEMP_DIR = "temp_exams"
-if not os.path.exists(TEMP_DIR):
-    os.makedirs(TEMP_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 @app.post("/api/v1/solve")
 async def solve_exam(
-    file: UploadFile = File(None),           # Optionnel pour le mode Chat
-    user_context: str = Form(""),            # Message de l'utilisateur
-    existing_solution: str = Form("")        # La solution actuelle en base (pour modif)
+    file: UploadFile = File(None),           
+    user_context: str = Form(""),            
+    existing_solution: str = Form("")        
 ):
     raw_text = ""
     temp_path = None
 
     try:
         # --- CAS 1 : NOUVEL ENVOI (Image ou PDF) ---
-        if file:
-            safe_filename = f"{int(time.time())}_{os.path.basename(file.filename)}"
-            temp_path = os.path.abspath(os.path.join(TEMP_DIR, safe_filename))
+        if file and file.filename:
+            # Génération d'un nom sécurisé pour éviter les conflits
+            ext = os.path.splitext(file.filename)[1]
+            safe_filename = f"nexus_{int(time.time())}{ext}"
+            temp_path = os.path.join(TEMP_DIR, safe_filename)
             
+            # Sauvegarde asynchrone du fichier
             with open(temp_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             
-            # Extraction OCR
-            raw_text = extract_text_from_exam(temp_path)
+            print(f"--- [NEXUS] Fichier reçu : {file.filename} ---")
+            print("\n" + "🚀" * 15)
+            print("--- [DEBUG] TEXTE EXTRAIT PAR L'OCR ---")
+            if raw_text:
+                print(raw_text[:1000]) # On affiche les 1000 premiers caractères
+            else:
+                print("⚠️ ATTENTION : L'EXTRACTION EST VIDE !")
+            print("🚀" * 15 + "\n")
+            # Extraction via le moteur hybride (Direct PDF ou OCR)
+            # On utilise run_in_executor si l'OCR prend du temps pour ne pas bloquer l'event loop
+            loop = asyncio.get_event_loop()
+            raw_text = await loop.run_in_executor(None, extract_text_from_exam, temp_path)
             
-            if not raw_text or len(raw_text.strip()) < 5:
-                return {"status": "error", "solution": "Contenu illisible."}
-            
-            print(f"--- [NEXUS] Nouveau Scan OCR effectué ---")
+            if not raw_text or len(raw_text.strip()) < 2:
+                return {"status": "error", "solution": "Le document semble vide ou illisible."}
 
         # --- CAS 2 : MODE CHAT (Interaction seule) ---
         else:
-            raw_text = "MODE_CHAT" # L'agent saura qu'il doit utiliser existing_solution
-            print(f"--- [NEXUS] Interaction Chat détectée ---")
+            # On passe une chaîne identifiable pour que l'agent sache qu'il n'y a pas d'OCR
+            raw_text = "CHAT_INTERACTION_ONLY"
+            print(f"--- [NEXUS] Requête de Chat reçue ---")
 
-        # --- APPEL À L'AGENT AGENTIQUE ---
-        # On passe toutes les données : l'agent décidera du nœud à utiliser
+        # --- EXÉCUTION DE L'AGENT ---
         inputs = {
             "raw_text": raw_text,
             "user_context": user_context,
             "solution": existing_solution
         }
         
+        # L'agent LangGraph gère le routage interne (Analyzer ou Chat_Feedback)
         result = exam_agent.invoke(inputs)
         
         return {
             "status": "success",
             "subject": result.get("subject_inferred", "Général"),
-            "solution": result.get("solution", "Erreur de génération.")
+            "solution": result.get("solution", "L'agent n'a pas pu formuler de réponse.")
         }
 
     except Exception as e:
-        print(f"❌ ERREUR MOTEUR : {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ ERREUR CRITIQUE : {str(e)}")
+        # On ne renvoie pas l'erreur brute en prod, mais utile pour ton debug
+        raise HTTPException(status_code=500, detail=f"Nexus Engine Error: {str(e)}")
     
     finally:
+        # Nettoyage automatique du fichier temporaire
         if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                print(f"⚠️ Nettoyage échoué : {e}")
 
 if __name__ == "__main__":
-    print("\n🚀 NEXUS ENGINE V3.2 : ONLINE | Ready for Chat & Vision")
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    # Paramètres Uvicorn optimisés
+    uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
