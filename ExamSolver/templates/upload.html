@@ -345,6 +345,9 @@
                 </div>
             </div>
 
+ <div class="input-wrapper">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                    {% csrf_token %}
 <div class="input-container">
     <div class="action-group">
         <label for="exam_image" class="icon-btn" id="label_enonce" title="Uploader l'énoncé">
@@ -364,6 +367,9 @@
         <i class="fa-solid fa-bolt"></i> EXÉCUTER
     </button>
 </div>
+                </form>
+                <p style="text-align: center; font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">Nexus Engine v3.1 | Groq Accelerated</p>
+            </div>
         </main>
     </div>
 
