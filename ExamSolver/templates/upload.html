@@ -218,6 +218,33 @@
             .input-container { margin: 0 15px; }
             .message-content { gap: 1rem; padding: 0 1rem; }
         }
+        /* Style pour les badges de fichiers sélectionnés */
+        .file-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            margin-top: 10px;
+        }
+        /* État actif quand un fichier est chargé */
+        .icon-btn.active { 
+            color: var(--primary) !important; 
+            background: rgba(16, 163, 127, 0.1); 
+            border-radius: 8px;
+        }
+        .action-group { 
+            display: flex; 
+            gap: 8px; 
+            align-items: center; 
+            border-right: 1px solid var(--glass-border); 
+            padding-right: 15px; 
+            margin-right: 10px; 
+        }
     </style>
 </head>
 <body>
@@ -318,24 +345,25 @@
                 </div>
             </div>
 
-            <div class="input-wrapper">
-                <form method="POST" enctype="multipart/form-data" id="uploadForm">
-                    {% csrf_token %}
 <div class="input-container">
-    <label for="exam_image" class="icon-btn" title="Uploader (Image/PDF)">
-        <i class="fa-solid fa-plus-circle fa-lg"></i>
-    </label>
-    <input type="file" name="exam_image" id="exam_image" accept="image/*,.pdf" onchange="handleFileSelect(this)" style="display: none;">
-    
-    <input type="text" name="user_message" id="user_message" placeholder="Injection d'un examen ou message au Nexus Core..." autocomplete="off" style="flex-grow: 1; background: transparent; border: none; color: white; outline: none; padding-left: 15px; font-family: inherit;">
-    
-    <button type="button" class="icon-btn" id="sendBtn" onclick="submitExam()" style="display: none; color: var(--primary);">
-        <i class="fa-solid fa-paper-plane-top fa-lg"></i> EXÉCUTER
+    <div class="action-group">
+        <label for="exam_image" class="icon-btn" id="label_enonce" title="Uploader l'énoncé">
+            <i class="fa-solid fa-file-circle-plus fa-lg"></i>
+        </label>
+        <input type="file" name="exam_image" id="exam_image" accept="image/*,.pdf" style="display: none;" onchange="handleFile(this, 'enonce')">
+
+        <label for="student_copy" class="icon-btn" id="label_copie" title="Ajouter la copie élève (Notation)">
+            <i class="fa-solid fa-user-graduate fa-lg"></i>
+        </label>
+        <input type="file" name="student_copy" id="student_copy" accept="image/*,.pdf" style="display: none;" onchange="handleFile(this, 'copie')">
+    </div>
+
+    <input type="text" name="user_message" id="user_message" placeholder="Consigne ou question au Nexus Core..." autocomplete="off" style="flex-grow: 1; background: transparent; border: none; color: white; outline: none; padding-left: 5px; font-family: inherit;">
+
+    <button type="button" id="sendBtn" onclick="submitExam()" style="background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-bolt"></i> EXÉCUTER
     </button>
 </div>
-                </form>
-                <p style="text-align: center; font-size: 9px; color: #444; margin-top: 20px; letter-spacing: 2px; text-transform: uppercase; font-weight: 800;">Nexus Engine v3.1 | Groq Accelerated</p>
-            </div>
         </main>
     </div>
 
@@ -395,21 +423,30 @@
     const uploadForm = document.getElementById('uploadForm');
     const userMsgInput = document.getElementById('user_message');
 
-    function handleFileSelect(input) {
+    function handleFile(input, type) {
+        const previewMessage = document.getElementById('previewMessage');
+        const welcomeScreen = document.getElementById('welcomeScreen');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const imagePreview = document.getElementById('imagePreview');
+
         if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                if (welcomeScreen) welcomeScreen.style.display = 'none';
-                imagePreview.src = e.target.result;
-                previewMessage.style.display = 'flex';
-                document.getElementById('fileNameDisplay').innerText = "DATA DETECTÉE : " + input.files[0].name;
-                
-                userMsgInput.placeholder = "Ajouter un contexte (ex: C'est du Big Data...)";
-                
-                sendBtn.style.display = "flex";
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            previewMessage.style.display = 'flex';
+            
+            // On active visuellement le bouton
+            document.getElementById('label_' + type).classList.add('active');
+            
+            // On met à jour l'affichage du nom du fichier
+            const currentText = fileNameDisplay.innerText;
+            const newLabel = (type === 'enonce' ? "📄 ÉNONCÉ" : "🎓 COPIE");
+            fileNameDisplay.innerText = currentText + " | " + newLabel + " : " + input.files[0].name;
+
+            // Preview de l'image (seulement pour l'énoncé)
+            if (type === 'enonce' && input.files[0].type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => { imagePreview.src = e.target.result; };
+                reader.readAsDataURL(input.files[0]);
             }
-            reader.readAsDataURL(input.files[0]);
         }
     }
 
