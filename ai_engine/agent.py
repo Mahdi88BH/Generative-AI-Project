@@ -2,7 +2,7 @@ import os
 from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
 from langchain_groq import ChatGroq
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 from ocr_engine import extract_text_from_exam # Import pour l'outil
 from dotenv import load_dotenv
 
