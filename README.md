@@ -68,3 +68,53 @@ Le projet est structuré en **services découplés** pour une maintenance modula
  ┃ ┗ 📜 manage.py            # Script d'administration Django
  ┣ 📜 requirements.txt       # Dépendances globales
  ┗ 📜 .env                   # Variables de configuration (Secret)
+
+ ---
+
+## 🧠 4. Workflow de l'Agent (Chain-of-Thought)
+Le flux de travail est orchestré par un graphe d'états cyclique garantissant la cohérence et la rigueur scientifique des données :
+
+*   **Phase de Perception (Vision Tool)** : L'agent détecte un fichier et invoque le serveur MCP. L'outil `read_document` effectue un nettoyage OpenCV (Upscaling, Thresholding) avant l'extraction OCR.
+*   **Phase d'Analyse (Cognitive Node)** : Le LLM reconstruit l'énoncé, identifie le domaine (Physique, Maths) et prépare le contexte de correction.
+*   **Phase de Résolution/Notation (Expert Node)** :
+    *   **Mode Solver** : Génération d'une solution idéale, pas-à-pas.
+    *   **Mode Grader** : Comparaison point par point entre l'énoncé et la copie élève pour déduire une note équitable.
+*   **Boucle de Feedback (Interaction Node)** : L'utilisateur peut affiner les résultats, déclenchant une ré-inférence ciblée de l'IA.
+
+---
+
+## 🚦 5. Protocole de Déploiement (Workflow de démarrage)
+Pour garantir la connectivité entre l'agent et ses outils, respectez l'ordre suivant dans vos terminaux respectifs :
+
+| Ordre | Service | Commande | Rôle |
+| :--- | :--- | :--- | :--- |
+| **1** | **MCP Vision** | `python ai_engine/mcp_server.py` | Expose les capacités OCR sur le port 8010 |
+| **2** | **Nexus Core** | `python ai_engine/main.py` | Active le graphe d'IA sur le port 8001 |
+| **3** | **Web Interface** | `python manage.py runserver` | Lance le portail utilisateur sur le port 8000 |
+
+---
+
+## ⚙️ 6. Configuration Système
+Avant le lancement, configurez le fichier `.env` dans le dossier `ai_engine/` :
+
+```env
+# Clé API pour l'inférence du modèle Llama 3.3 via Groq
+GROQ_API_KEY=gsk_your_key_here
+
+# Chemin vers l'exécutable Tesseract sur Windows
+TESSERACT_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe
+
+---
+
+## 👨‍💻 7. Acteurs & Exploitation
+
+*   **Architectes** : Aimad & Mahdi (_Master 2 Vision par Ordinateur_)
+*   **Exploitation** : Plateforme destinée aux institutions académiques pour l'assistance à la correction de masse et l'aide à la révision personnalisée.
+*   **Versioning** : `v1.0.0-stable` (Basé sur le protocole MCP v0.1.0).
+
+<br />
+
+<p align="center">
+  <b>©  Nexus AI - Engineering Intelligence for the Future of Education</b><br />
+  <i>Made with ❤️ for Academic Excellence</i>
+</p>
