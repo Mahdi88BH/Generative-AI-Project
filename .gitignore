@@ -46,3 +46,8 @@ dist/
 htmlcov/
 media/*
 !media/.gitkeep
+
+ai_engine/__pycache__/*
+ExamSolver/config/__pycache__/*
+ExamSolver/config/__pycache__/settings.cpython-314.pyc
+.vscode
